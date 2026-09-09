@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Inter', 'Noto Sans Gurmukhi', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+.font-gurmukhi {
+  font-family: 'Noto Sans Gurmukhi', sans-serif;
+}
+
+/* Custom Palette Navigator Scrollbar */
+.palette-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.palette-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
