@@ -215,6 +215,25 @@ const deleteQuestion = async (req, res, next) => {
   }
 };
 
+const bulkDeleteQuestions = async (req, res, next) => {
+  try {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return errorResponse(res, 'No question IDs provided for bulk deletion', 'INVALID_IDS', 400);
+    }
+
+    const deletedCount = await Question.destroy({
+      where: {
+        id: { [Op.in]: ids },
+      },
+    });
+
+    return successResponse(res, { deletedCount, ids }, `${deletedCount} question(s) deleted successfully`);
+  } catch (err) {
+    next(err);
+  }
+};
+
 const importQuestions = async (req, res, next) => {
   try {
     if (!req.file) {
@@ -329,6 +348,7 @@ module.exports = {
   createQuestion,
   updateQuestion,
   deleteQuestion,
+  bulkDeleteQuestions,
   importQuestions,
   importQuestionsJSON,
   generatePreview,

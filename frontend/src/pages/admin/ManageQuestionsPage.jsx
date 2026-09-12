@@ -13,6 +13,8 @@ const ManageQuestionsPage = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
+  const [selectedIds, setSelectedIds] = useState([]);
+
   // Edit Modal State
   const [editingQuestion, setEditingQuestion] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -94,13 +96,51 @@ const ManageQuestionsPage = () => {
   }, []);
 
   useEffect(() => {
+    setSelectedIds([]);
     fetchQuestions();
   }, [page, selectedTopic, selectedDifficulty]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
+    setSelectedIds([]);
     setPage(1);
     fetchQuestions();
+  };
+
+  const isAllSelected = questions.length > 0 && questions.every((q) => selectedIds.includes(q.id));
+
+  const handleSelectAll = () => {
+    if (isAllSelected) {
+      const pageIds = questions.map((q) => q.id);
+      setSelectedIds((prev) => prev.filter((id) => !pageIds.includes(id)));
+    } else {
+      const pageIds = questions.map((q) => q.id);
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...pageIds])));
+    }
+  };
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected question(s)? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const res = await api.post('/questions/bulk-delete', { ids: selectedIds });
+      if (res.data.success) {
+        setSelectedIds([]);
+        fetchQuestions();
+      }
+    } catch (err) {
+      console.error('Failed to bulk delete questions:', err);
+      alert('Failed to delete selected questions.');
+    }
   };
 
   const handleToggleVerify = async (id, currentStatus) => {
@@ -119,6 +159,7 @@ const ManageQuestionsPage = () => {
     try {
       const res = await api.delete(`/questions/${id}`);
       if (res.data.success) {
+        setSelectedIds((prev) => prev.filter((itemId) => itemId !== id));
         fetchQuestions();
       }
     } catch (err) {
@@ -186,6 +227,16 @@ const ManageQuestionsPage = () => {
           <p className="text-xs text-slate-500">View, edit, search, and verify Punjabi MCQs</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 shrink-0">
+          {selectedIds.length > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center space-x-1.5 animate-in fade-in"
+              title="Delete all selected questions"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete Selected ({selectedIds.length})</span>
+            </button>
+          )}
           <button
             onClick={() => handleExport('csv')}
             className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold rounded-xl text-xs transition-all flex items-center space-x-1.5"
@@ -272,7 +323,16 @@ const ManageQuestionsPage = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
-                  <th className="py-4 px-6">ID</th>
+                  <th className="py-4 px-4 w-12 text-center">
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      onChange={handleSelectAll}
+                      className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-slate-300 cursor-pointer"
+                      title="Select all questions on this page"
+                    />
+                  </th>
+                  <th className="py-4 px-4">ID</th>
                   <th className="py-4 px-6 max-w-md">Question Text (Punjabi)</th>
                   <th className="py-4 px-6">Topic</th>
                   <th className="py-4 px-6">Difficulty</th>
@@ -281,47 +341,63 @@ const ManageQuestionsPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {questions.map((q) => (
-                  <tr key={q.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-4 px-6 font-mono text-xs text-slate-500">#{q.id}</td>
-                    <td className="py-4 px-6 font-gurmukhi font-semibold text-slate-900 max-w-md truncate">
-                      {q.question}
-                    </td>
-                    <td className="py-4 px-6 text-xs text-slate-600 font-medium font-gurmukhi">
-                      {q.topicName || q.Topic?.name}
-                    </td>
-                    <td className="py-4 px-6">
-                      <DifficultyBadge difficulty={q.difficulty} />
-                    </td>
-                    <td className="py-4 px-6">
-                      <button
-                        onClick={() => handleToggleVerify(q.id, q.isVerified)}
-                        className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-bold ${
-                          q.isVerified ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
-                        }`}
-                      >
-                        {q.isVerified ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                        <span>{q.isVerified ? 'Verified' : 'Pending'}</span>
-                      </button>
-                    </td>
-                    <td className="py-4 px-6 text-right space-x-2">
-                      <button
-                        onClick={() => handleOpenEdit(q)}
-                        className="p-1.5 text-slate-600 hover:text-amber-600 hover:bg-slate-100 rounded-lg transition-colors"
-                        title="Edit Question"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(q.id)}
-                        className="p-1.5 text-slate-600 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-colors"
-                        title="Delete Question"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {questions.map((q) => {
+                  const isRowSelected = selectedIds.includes(q.id);
+                  return (
+                    <tr
+                      key={q.id}
+                      className={`transition-colors ${
+                        isRowSelected ? 'bg-rose-50/60 hover:bg-rose-50' : 'hover:bg-slate-50/80'
+                      }`}
+                    >
+                      <td className="py-4 px-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isRowSelected}
+                          onChange={() => handleToggleSelect(q.id)}
+                          className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-slate-300 cursor-pointer"
+                        />
+                      </td>
+                      <td className="py-4 px-4 font-mono text-xs text-slate-500">#{q.id}</td>
+                      <td className="py-4 px-6 font-gurmukhi font-semibold text-slate-900 max-w-md truncate">
+                        {q.question}
+                      </td>
+                      <td className="py-4 px-6 text-xs text-slate-600 font-medium font-gurmukhi">
+                        {q.topicName || q.Topic?.name}
+                      </td>
+                      <td className="py-4 px-6">
+                        <DifficultyBadge difficulty={q.difficulty} />
+                      </td>
+                      <td className="py-4 px-6">
+                        <button
+                          onClick={() => handleToggleVerify(q.id, q.isVerified)}
+                          className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-bold ${
+                            q.isVerified ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
+                          }`}
+                        >
+                          {q.isVerified ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                          <span>{q.isVerified ? 'Verified' : 'Pending'}</span>
+                        </button>
+                      </td>
+                      <td className="py-4 px-6 text-right space-x-2">
+                        <button
+                          onClick={() => handleOpenEdit(q)}
+                          className="p-1.5 text-slate-600 hover:text-amber-600 hover:bg-slate-100 rounded-lg transition-colors"
+                          title="Edit Question"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(q.id)}
+                          className="p-1.5 text-slate-600 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-colors"
+                          title="Delete Question"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

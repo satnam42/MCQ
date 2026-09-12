@@ -18,6 +18,8 @@ router.get('/export', questionController.exportQuestions);
 router.post('/', validateQuestion, questionController.createQuestion);
 router.put('/:id', questionController.updateQuestion);
 router.delete('/:id', questionController.deleteQuestion);
+router.post('/bulk-delete', questionController.bulkDeleteQuestions);
+router.delete('/', questionController.bulkDeleteQuestions);
 
 router.post('/import', upload.single('file'), questionController.importQuestions);
 router.post('/import-json', upload.single('file'), questionController.importQuestionsJSON);
