@@ -34,14 +34,14 @@ const Register = () => {
       <div className="bg-white rounded-3xl p-8 shadow-xl border border-slate-200 max-w-md w-full space-y-6">
         
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-2 font-bold font-gurmukhi text-2xl">
-            ਪ੍ਰ
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-2 font-extrabold text-sm tracking-tight">
+            MCQ
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900">
             Create Account
           </h1>
           <p className="text-xs text-slate-500">
-            Punjabi Lecturer Cadre Candidate Registration
+            MCQ Candidate Registration
           </p>
         </div>
 

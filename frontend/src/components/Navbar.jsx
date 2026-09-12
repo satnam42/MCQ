@@ -23,14 +23,14 @@ const Navbar = () => {
           
           {/* Brand Logo */}
           <Link to="/" className="flex items-center space-x-3 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-600 flex items-center justify-center font-bold text-slate-950 text-xl shadow-md group-hover:scale-105 transition-transform font-gurmukhi">
-              ਪ੍ਰ
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-600 flex items-center justify-center font-extrabold text-slate-950 text-base shadow-md group-hover:scale-105 transition-transform tracking-tight">
+              MCQ
             </div>
             <div>
-              <span className="text-lg font-bold text-white tracking-wide block leading-none">
-                Punjabi Lecturer Cadre
+              <span className="text-xl font-extrabold text-white tracking-wider block leading-none">
+                MCQ
               </span>
-              <span className="text-xs text-amber-400 font-medium">Daily MCQ Preparation Platform</span>
+              <span className="text-xs text-amber-400 font-medium">Daily Preparation Platform</span>
             </div>
           </Link>
 

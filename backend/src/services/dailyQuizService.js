@@ -5,8 +5,9 @@ class DailyQuizService {
   /**
    * Retrieves existing Daily Quiz for given date (YYYY-MM-DD) or generates a new persistent one.
    */
-  async getOrGenerateDailyQuiz(dateString) {
+  async getOrGenerateDailyQuiz(dateString, limit = 50) {
     const targetDate = dateString || new Date().toISOString().split('T')[0];
+    const reqLimit = parseInt(limit, 10) || 50;
 
     // 1. Check if daily quiz exists for date
     let quiz = await DailyQuiz.findOne({
@@ -30,13 +31,54 @@ class DailyQuizService {
       order: [[{ model: DailyQuizQuestion, as: 'quizQuestions' }, 'question_order', 'ASC']],
     });
 
-    if (quiz) {
-      return this.formatQuizResponse(quiz);
+    if (!quiz) {
+      quiz = await this.generateDailyQuiz(targetDate);
     }
 
-    // 2. Quiz does not exist for today - Generate new Daily Quiz
-    quiz = await this.generateDailyQuiz(targetDate);
-    return this.formatQuizResponse(quiz);
+    const formatted = this.formatQuizResponse(quiz);
+    if (formatted.questions.length >= reqLimit) {
+      formatted.questions = formatted.questions.slice(0, reqLimit);
+      formatted.totalQuestions = formatted.questions.length;
+      return formatted;
+    }
+
+    // If 100 or 150 questions requested for Today's Test, append additional questions
+    const needed = reqLimit - formatted.questions.length;
+    const existingIds = formatted.questions.map((q) => q.id);
+
+    const extraQuestions = await Question.findAll({
+      where: {
+        is_active: true,
+        id: { [Op.notIn]: existingIds.length ? existingIds : [0] },
+      },
+      include: [
+        { model: Topic, as: 'topic', attributes: ['id', 'name'] },
+        { model: Subtopic, as: 'subtopic', attributes: ['id', 'name'] },
+      ],
+      limit: needed,
+      order: sequelize.random(),
+    });
+
+    const formattedExtra = extraQuestions.map((q, index) => ({
+      order: formatted.questions.length + index + 1,
+      id: q.id,
+      question: q.question,
+      options: {
+        A: q.option_a,
+        B: q.option_b,
+        C: q.option_c,
+        D: q.option_d,
+      },
+      topicId: q.topic_id,
+      topicName: q.topic ? q.topic.name : '',
+      subtopicName: q.subtopic ? q.subtopic.name : '',
+      difficulty: q.difficulty,
+      source: q.source,
+    }));
+
+    formatted.questions = [...formatted.questions, ...formattedExtra];
+    formatted.totalQuestions = formatted.questions.length;
+    return formatted;
   }
 
   /**

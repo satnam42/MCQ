@@ -13,7 +13,14 @@ const dialect = process.env.DB_DIALECT || 'sqlite'; // Default to sqlite if mysq
 
 let sequelize;
 
-if (dialect === 'mysql') {
+if (process.env.NODE_ENV === 'test') {
+  sequelize = new Sequelize({
+    dialect: 'sqlite',
+    storage: ':memory:',
+    logging: false,
+    define: { timestamps: true, underscored: true },
+  });
+} else if (dialect === 'mysql') {
   sequelize = new Sequelize(dbName, dbUser, dbPassword, {
     host: dbHost,
     port: dbPort,

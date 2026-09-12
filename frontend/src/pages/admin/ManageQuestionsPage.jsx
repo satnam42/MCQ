@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import DifficultyBadge from '../../components/DifficultyBadge';
-import { Search, Plus, Edit3, Trash2, CheckCircle2, XCircle } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, CheckCircle2, XCircle, Download, FileText } from 'lucide-react';
 
 const ManageQuestionsPage = () => {
   const [questions, setQuestions] = useState([]);
@@ -28,6 +28,37 @@ const ManageQuestionsPage = () => {
     difficulty: 'medium',
     source: '',
   });
+
+  const handleExport = async (format) => {
+    try {
+      const topicQuery = selectedTopic ? `&topicId=${selectedTopic}` : '';
+      const diffQuery = selectedDifficulty ? `&difficulty=${selectedDifficulty}` : '';
+      const token = localStorage.getItem('token');
+
+      const response = await fetch(`/api/questions/export?format=${format}${topicQuery}${diffQuery}`, {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `questions_export.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Failed to export questions:', err);
+      alert('Failed to export questions.');
+    }
+  };
 
   const fetchQuestions = async () => {
     setLoading(true);
@@ -154,13 +185,31 @@ const ManageQuestionsPage = () => {
           <h1 className="text-2xl font-bold text-slate-900">Manage Question Bank</h1>
           <p className="text-xs text-slate-500">View, edit, search, and verify Punjabi MCQs</p>
         </div>
-        <button
-          onClick={handleOpenCreate}
-          className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-sm shadow-md transition-all flex items-center space-x-2 shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add New MCQ</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <button
+            onClick={() => handleExport('csv')}
+            className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold rounded-xl text-xs transition-all flex items-center space-x-1.5"
+            title="Download all questions as CSV file"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Export CSV</span>
+          </button>
+          <button
+            onClick={() => handleExport('json')}
+            className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 font-bold rounded-xl text-xs transition-all flex items-center space-x-1.5"
+            title="Download all questions as JSON file"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Export JSON</span>
+          </button>
+          <button
+            onClick={handleOpenCreate}
+            className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-sm shadow-md transition-all flex items-center space-x-2"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add New MCQ</span>
+          </button>
+        </div>
       </div>
 
       {/* Filters Bar */}

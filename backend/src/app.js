@@ -23,7 +23,7 @@ app.use('/api', limiter);
 
 // Health Check
 app.get('/api/health', (req, res) => {
-  res.json({ success: true, message: 'Punjabi Lecturer Cadre API is running', timestamp: new Date().toISOString() });
+  res.json({ success: true, message: 'MCQ API is running', timestamp: new Date().toISOString() });
 });
 
 // Primary Routes

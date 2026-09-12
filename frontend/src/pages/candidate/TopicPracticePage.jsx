@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import QuestionRepetitionSelector from '../../components/QuestionRepetitionSelector';
+import { clearTestProgress } from '../../utils/testCache';
 import { BookOpen, PlayCircle, Filter, CheckCircle } from 'lucide-react';
 
 const TopicPracticePage = () => {
@@ -8,8 +10,11 @@ const TopicPracticePage = () => {
 
   const [topics, setTopics] = useState([]);
   const [selectedTopic, setSelectedTopic] = useState(null);
-  const [questionCount, setQuestionCount] = useState(10);
+  const [questionCount, setQuestionCount] = useState(50);
   const [difficulty, setDifficulty] = useState('all');
+  const [repetitionMode, setRepetitionMode] = useState(() => {
+    return localStorage.getItem('question_repetition_preference') || 'mix';
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,12 +37,22 @@ const TopicPracticePage = () => {
     fetchTopics();
   }, []);
 
+  const handleRepetitionModeChange = (mode) => {
+    setRepetitionMode(mode);
+    localStorage.setItem('question_repetition_preference', mode);
+  };
+
   const handleStartPractice = async () => {
     if (!selectedTopic) return;
 
     try {
+      // Clear any previous cached test to prevent interference with new session
+      clearTestProgress();
+
       const diffQuery = difficulty !== 'all' ? `&difficulty=${difficulty}` : '';
-      const res = await api.get(`/topics/${selectedTopic.id}/questions?limit=${questionCount}${diffQuery}`);
+      const res = await api.get(
+        `/topics/${selectedTopic.id}/questions?limit=${questionCount}${diffQuery}&repetitionMode=${repetitionMode}`
+      );
 
       if (res.data.success && res.data.data.questions.length > 0) {
         const questionsList = res.data.data.questions;
@@ -55,6 +70,10 @@ const TopicPracticePage = () => {
               attemptId: startRes.data.data.attemptId,
               title: `${selectedTopic.name} - Practice`,
               questions: questionsList,
+              topicId: selectedTopic.id,
+              difficulty,
+              repetitionMode,
+              questionCount,
             },
           });
         }
@@ -87,7 +106,7 @@ const TopicPracticePage = () => {
           </h1>
         </div>
         <p className="text-sm text-slate-600">
-          Select a topic and difficulty level to customize your practice session
+          Select a topic, difficulty level, and question repetition preference to customize your practice session
         </p>
       </div>
 
@@ -154,10 +173,10 @@ const TopicPracticePage = () => {
           {/* Question Count Radio selector */}
           <div className="space-y-2">
             <label className="block text-xs font-bold text-slate-700">
-              Number of Questions:
+              How many questions do you want to start?
             </label>
             <div className="grid grid-cols-3 gap-2">
-              {[10, 25, 50].map((cnt) => (
+              {[50, 100, 150].map((cnt) => (
                 <button
                   key={cnt}
                   type="button"
@@ -190,6 +209,12 @@ const TopicPracticePage = () => {
               <option value="tough">Tough</option>
             </select>
           </div>
+
+          {/* Question Repetition Preference Selector */}
+          <QuestionRepetitionSelector
+            value={repetitionMode}
+            onChange={handleRepetitionModeChange}
+          />
 
           {/* Start CTA */}
           <button

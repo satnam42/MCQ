@@ -1,18 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import QuestionCard from '../../components/QuestionCard';
 import QuestionNavigator from '../../components/QuestionNavigator';
 import QuizTimer from '../../components/QuizTimer';
 import ProgressBar from '../../components/ProgressBar';
 import ResultSummaryModal from '../../components/ResultSummaryModal';
-import { ChevronLeft, ChevronRight, Send, AlertCircle } from 'lucide-react';
+import ResetConfirmationModal from '../../components/ResetConfirmationModal';
+import { saveTestProgress, restoreTestProgress, clearTestProgress } from '../../utils/testCache';
+import { ChevronLeft, ChevronRight, Send, AlertCircle, RotateCcw, CheckCircle2 } from 'lucide-react';
 
 const DailyQuizPage = () => {
+  const location = useLocation();
   const navigate = useNavigate();
+
+  const routeQuestionCount = location.state?.questionCount || 50;
 
   const [quizData, setQuizData] = useState(null);
   const [attemptId, setAttemptId] = useState(null);
+  const [questionCount, setQuestionCount] = useState(routeQuestionCount);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [markedForReview, setMarkedForReview] = useState({});
@@ -21,14 +27,67 @@ const DailyQuizPage = () => {
   const [error, setError] = useState('');
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [isRestoredBannerVisible, setIsRestoredBannerVisible] = useState(false);
+
+  const questionRef = useRef(null);
+
+  // Mobile scroll restoration override on mount
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+    window.scrollTo(0, 0);
+  }, []);
+
+  // Smoothly scroll the current question container to top of mobile viewport whenever question changes
+  useEffect(() => {
+    if (!loading && questionRef.current) {
+      requestAnimationFrame(() => {
+        questionRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        });
+      });
+      const timer = setTimeout(() => {
+        questionRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        });
+      }, 80);
+      return () => clearTimeout(timer);
+    }
+  }, [currentIndex, loading]);
 
   useEffect(() => {
     const initDailyQuiz = async () => {
+      // 1. Check if an unfinished test progress exists in cache
+      const cached = restoreTestProgress();
+      if (cached && cached.testType === 'daily' && cached.questions && cached.questions.length > 0) {
+        setQuizData({
+          id: cached.dailyQuizId,
+          quizDate: cached.quizDate || 'Today',
+          questions: cached.questions,
+        });
+        setAttemptId(cached.testId);
+        setQuestionCount(cached.totalQuestions || cached.questions.length || 50);
+        setCurrentIndex(cached.currentQuestionIndex || 0);
+        setAnswers(cached.selectedAnswers || {});
+        setMarkedForReview(cached.markedForReview || {});
+        setSeconds(cached.elapsedTime || 0);
+        setIsRestoredBannerVisible(true);
+        setLoading(false);
+        return;
+      }
+
+      // 2. Otherwise load today's test fresh with target limit
       try {
-        const quizRes = await api.get('/daily-quiz');
+        const quizRes = await api.get(`/daily-quiz?limit=${routeQuestionCount}`);
         if (quizRes.data.success) {
           const quiz = quizRes.data.data;
           setQuizData(quiz);
+          setQuestionCount(quiz.questions.length);
 
           // Start Test Attempt
           const startRes = await api.post('/tests/start', {
@@ -38,7 +97,22 @@ const DailyQuizPage = () => {
           });
 
           if (startRes.data.success) {
-            setAttemptId(startRes.data.data.attemptId);
+            const newAttemptId = startRes.data.data.attemptId;
+            setAttemptId(newAttemptId);
+            saveTestProgress({
+              testId: newAttemptId,
+              testType: 'daily',
+              title: "Today's Daily Test",
+              dailyQuizId: quiz.id,
+              quizDate: quiz.quizDate,
+              totalQuestions: quiz.questions.length,
+              questions: quiz.questions,
+              currentQuestionIndex: 0,
+              selectedAnswers: {},
+              markedForReview: {},
+              elapsedTime: 0,
+              status: 'in-progress',
+            });
           }
         }
       } catch (err) {
@@ -51,6 +125,26 @@ const DailyQuizPage = () => {
 
     initDailyQuiz();
   }, []);
+
+  // Automatically save test progress on state changes
+  useEffect(() => {
+    if (!loading && attemptId && quizData && quizData.questions?.length > 0) {
+      saveTestProgress({
+        testId: attemptId,
+        testType: 'daily',
+        title: "Today's Daily Test",
+        dailyQuizId: quizData.id,
+        quizDate: quizData.quizDate,
+        totalQuestions: quizData.questions.length,
+        questions: quizData.questions,
+        currentQuestionIndex: currentIndex,
+        selectedAnswers: answers,
+        markedForReview: markedForReview,
+        elapsedTime: seconds,
+        status: 'in-progress',
+      });
+    }
+  }, [loading, attemptId, quizData, currentIndex, answers, markedForReview, seconds]);
 
   if (loading) {
     return (
@@ -111,6 +205,60 @@ const DailyQuizPage = () => {
     if (currentIndex < totalQuestions - 1) setCurrentIndex(currentIndex + 1);
   };
 
+  const handleConfirmReset = async () => {
+    setIsResetting(true);
+    try {
+      // 1. Clear saved test progress from localStorage
+      clearTestProgress();
+
+      const targetSize = questionCount || questions.length || 50;
+      const quizRes = await api.get(`/daily-quiz?limit=${targetSize}`);
+      const freshQuiz = quizRes.data.success ? quizRes.data.data : quizData;
+
+      // 2. Start a new test attempt
+      const startRes = await api.post('/tests/start', {
+        dailyQuizId: freshQuiz.id,
+        testType: 'daily',
+        totalQuestions: freshQuiz.questions.length,
+      });
+
+      if (startRes.data.success) {
+        const newAttemptId = startRes.data.data.attemptId;
+        setAttemptId(newAttemptId);
+        setQuizData(freshQuiz);
+
+        // 3. Reset internal test state
+        setAnswers({});
+        setMarkedForReview({});
+        setCurrentIndex(0);
+        setSeconds(0);
+        setIsRestoredBannerVisible(false);
+
+        // Save fresh test state
+        saveTestProgress({
+          testId: newAttemptId,
+          testType: 'daily',
+          title: "Today's Daily Test",
+          dailyQuizId: freshQuiz.id,
+          quizDate: freshQuiz.quizDate,
+          totalQuestions: freshQuiz.questions.length,
+          questions: freshQuiz.questions,
+          currentQuestionIndex: 0,
+          selectedAnswers: {},
+          markedForReview: {},
+          elapsedTime: 0,
+          status: 'in-progress',
+        });
+      }
+    } catch (err) {
+      console.error('Failed to reset test:', err);
+      alert('Failed to reset test session. Please try again.');
+    } finally {
+      setIsResetting(false);
+      setIsResetModalOpen(false);
+    }
+  };
+
   const handleConfirmSubmit = async () => {
     if (!attemptId) return;
     setIsSubmitting(true);
@@ -127,6 +275,7 @@ const DailyQuizPage = () => {
       });
 
       if (res.data.success) {
+        clearTestProgress();
         navigate(`/test-result/${attemptId}`);
       }
     } catch (err) {
@@ -143,6 +292,24 @@ const DailyQuizPage = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       
+      {/* Restored Test Banner */}
+      {isRestoredBannerVisible && (
+        <div className="bg-amber-50 border border-amber-300 text-amber-950 px-4 py-3 rounded-2xl flex items-center justify-between shadow-sm animate-in fade-in duration-300">
+          <div className="flex items-center space-x-2.5">
+            <CheckCircle2 className="w-5 h-5 text-amber-600 shrink-0" />
+            <span className="text-xs sm:text-sm font-semibold">
+              Your previous test progress has been restored.
+            </span>
+          </div>
+          <button
+            onClick={() => setIsRestoredBannerVisible(false)}
+            className="text-xs text-amber-800 hover:text-amber-950 font-bold px-2.5 py-1 bg-amber-200/60 rounded-lg hover:bg-amber-200 transition-colors"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Top Test Header & Timer Bar */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6 flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -154,9 +321,18 @@ const DailyQuizPage = () => {
           </p>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-3 sm:space-x-4">
           <QuizTimer seconds={seconds} setSeconds={setSeconds} />
           
+          <button
+            onClick={() => setIsResetModalOpen(true)}
+            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-all flex items-center space-x-1.5"
+            title="Reset Test Session"
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span className="hidden sm:inline">Reset Test</span>
+          </button>
+
           <button
             onClick={() => setIsSubmitModalOpen(true)}
             className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-sm shadow-md transition-all flex items-center space-x-2"
@@ -180,7 +356,7 @@ const DailyQuizPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         
         {/* Left Column: Question Card */}
-        <div className="lg:col-span-2 space-y-4">
+        <div ref={questionRef} className="lg:col-span-2 space-y-4 scroll-mt-20 sm:scroll-mt-24">
           <QuestionCard
             question={currentQuestion}
             questionNumber={currentIndex + 1}
@@ -236,7 +412,7 @@ const DailyQuizPage = () => {
 
       </div>
 
-      {/* Confirmation Modal */}
+      {/* Confirmation Modals */}
       <ResultSummaryModal
         isOpen={isSubmitModalOpen}
         onClose={() => setIsSubmitModalOpen(false)}
@@ -248,8 +424,16 @@ const DailyQuizPage = () => {
         isSubmitting={isSubmitting}
       />
 
+      <ResetConfirmationModal
+        isOpen={isResetModalOpen}
+        onClose={() => setIsResetModalOpen(false)}
+        onConfirmReset={handleConfirmReset}
+        isResetting={isResetting}
+      />
+
     </div>
   );
 };
 
 export default DailyQuizPage;
+

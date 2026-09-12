@@ -14,6 +14,7 @@ const upload = multer({
 router.use(authenticate, authorize(['admin', 'candidate']));
 
 router.get('/', questionController.listQuestions);
+router.get('/export', questionController.exportQuestions);
 router.post('/', validateQuestion, questionController.createQuestion);
 router.put('/:id', questionController.updateQuestion);
 router.delete('/:id', questionController.deleteQuestion);

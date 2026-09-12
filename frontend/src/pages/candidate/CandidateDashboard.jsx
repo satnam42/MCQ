@@ -8,6 +8,7 @@ const CandidateDashboard = () => {
   const { user } = useAuth();
 
   const [todayQuiz, setTodayQuiz] = useState(null);
+  const [todayQuestionCount, setTodayQuestionCount] = useState(50);
   const [loading, setLoading] = useState(true);
   const [progressSummary, setProgressSummary] = useState(null);
 
@@ -75,23 +76,46 @@ const CandidateDashboard = () => {
                 <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
                   Today's Test
                 </h2>
-                <p className="text-xs text-slate-500">50 Multiple Choice Questions (Persisted per Date)</p>
+                <p className="text-xs text-slate-500">Multiple Choice Questions (Persisted per Date)</p>
+              </div>
+            </div>
+
+            {/* Question count selector (50, 100, 150) */}
+            <div className="space-y-1.5 pt-1">
+              <label className="text-xs font-bold text-slate-700 block">
+                How many questions do you want to start?
+              </label>
+              <div className="flex items-center space-x-2">
+                {[50, 100, 150].map((cnt) => (
+                  <button
+                    key={cnt}
+                    type="button"
+                    onClick={() => setTodayQuestionCount(cnt)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                      todayQuestionCount === cnt
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-sm scale-105'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200'
+                    }`}
+                  >
+                    {cnt} Qs
+                  </button>
+                ))}
               </div>
             </div>
 
             {/* Difficulty breakdown pill grid */}
-            <div className="grid grid-cols-3 gap-3 pt-2">
+            <div className="grid grid-cols-3 gap-3 pt-1">
               <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 text-center">
-                <span className="block text-xl font-extrabold text-emerald-800">20</span>
-                <span className="text-xs font-semibold text-emerald-700">Easy</span>
+                <span className="block text-xl font-extrabold text-emerald-800">Easy</span>
+                <span className="text-xs font-semibold text-emerald-700">Category</span>
               </div>
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-center">
-                <span className="block text-xl font-extrabold text-amber-800">20</span>
-                <span className="text-xs font-semibold text-amber-700">Medium</span>
+                <span className="block text-xl font-extrabold text-amber-800">Medium</span>
+                <span className="text-xs font-semibold text-amber-700">Category</span>
               </div>
               <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3 text-center">
-                <span className="block text-xl font-extrabold text-rose-800">10</span>
-                <span className="text-xs font-semibold text-rose-700">Tough</span>
+                <span className="block text-xl font-extrabold text-rose-800">Tough</span>
+                <span className="text-xs font-semibold text-rose-700">Category</span>
               </div>
             </div>
           </div>
@@ -99,12 +123,13 @@ const CandidateDashboard = () => {
           <div className="lg:text-right shrink-0">
             <Link
               to="/daily-quiz"
+              state={{ questionCount: todayQuestionCount }}
               className="inline-flex items-center space-x-3 px-8 py-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold rounded-2xl text-base shadow-xl hover:shadow-2xl transition-all scale-100 hover:scale-105"
             >
               <PlayCircle className="w-6 h-6" />
-              <span>Start Today's Test</span>
+              <span>Start Today's Test ({todayQuestionCount} Qs)</span>
             </Link>
-            <p className="text-xs text-slate-400 mt-2 font-medium">50 MCQs • Full Explanations Included</p>
+            <p className="text-xs text-slate-400 mt-2 font-medium">{todayQuestionCount} MCQs • Full Explanations Included</p>
           </div>
 
         </div>

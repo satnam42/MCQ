@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import DifficultyBadge from '../../components/DifficultyBadge';
@@ -12,6 +12,35 @@ const ReattemptIncorrectPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [masteredCount, setMasteredCount] = useState(0);
+
+  const questionRef = useRef(null);
+
+  // Mobile scroll restoration override on mount
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+    window.scrollTo(0, 0);
+  }, []);
+
+  // Smoothly scroll current question container into view on mobile viewport
+  useEffect(() => {
+    if (!loading && questionRef.current) {
+      requestAnimationFrame(() => {
+        questionRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        });
+      });
+      const timer = setTimeout(() => {
+        questionRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        });
+      }, 80);
+      return () => clearTimeout(timer);
+    }
+  }, [currentIndex, loading]);
 
   useEffect(() => {
     const fetchIncorrectQuestions = async () => {
@@ -149,7 +178,7 @@ const ReattemptIncorrectPage = () => {
         
         {/* Left Column: Re-attempt Question Interactive Card */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 md:p-8 space-y-6">
+          <div ref={questionRef} className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 md:p-8 space-y-6 scroll-mt-20 sm:scroll-mt-24">
             
             {/* Card Header Info */}
             <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-slate-100">

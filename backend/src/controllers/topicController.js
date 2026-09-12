@@ -1,4 +1,5 @@
 const { Topic, Subtopic, Question, sequelize } = require('../models');
+const questionGeneratorService = require('../services/questionGeneratorService');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
 
 const getTopics = async (req, res, next) => {
@@ -32,46 +33,37 @@ const getTopics = async (req, res, next) => {
 const getTopicQuestions = async (req, res, next) => {
   try {
     const { topicId } = req.params;
-    const limit = parseInt(req.query.limit || 10, 10);
+    const limit = parseInt(req.query.limit || 50, 10);
     const difficulty = req.query.difficulty; // 'easy', 'medium', 'tough', or null/all
+    const repetitionMode = req.query.repetitionMode || 'mix'; // 'mix' or 'only_new'
+    const userId = req.user ? req.user.id : null;
 
     const topic = await Topic.findByPk(topicId);
     if (!topic) {
       return errorResponse(res, 'Topic not found', 'TOPIC_NOT_FOUND', 404);
     }
 
-    const whereClause = {
-      topic_id: topicId,
-      is_active: true,
-    };
-
-    if (difficulty && ['easy', 'medium', 'tough'].includes(difficulty.toLowerCase())) {
-      whereClause.difficulty = difficulty.toLowerCase();
-    }
-
-    const questions = await Question.findAll({
-      where: whereClause,
+    const generatedQuestions = await questionGeneratorService.generate({
+      topicId,
+      difficulty,
       limit,
-      order: sequelize.random(),
-      include: [
-        { model: Topic, as: 'topic', attributes: ['id', 'name'] },
-        { model: Subtopic, as: 'subtopic', attributes: ['id', 'name'] },
-      ],
+      userId,
+      repetitionMode,
     });
 
-    const formattedQuestions = questions.map((q, index) => ({
+    const formattedQuestions = generatedQuestions.map((q, index) => ({
       order: index + 1,
       id: q.id,
       question: q.question,
-      options: {
-        A: q.option_a,
-        B: q.option_b,
-        C: q.option_c,
-        D: q.option_d,
+      options: q.options || {
+        A: q.optionA,
+        B: q.optionB,
+        C: q.optionC,
+        D: q.optionD,
       },
-      topicId: q.topic_id,
-      topicName: q.topic ? q.topic.name : '',
-      subtopicName: q.subtopic ? q.subtopic.name : '',
+      topicId: q.topicId || topic.id,
+      topicName: q.topicName || topic.name,
+      subtopicName: q.subtopicName || q.subtopic || '',
       difficulty: q.difficulty,
       source: q.source,
     }));

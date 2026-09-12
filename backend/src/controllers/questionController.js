@@ -260,6 +260,70 @@ const generatePreview = async (req, res, next) => {
   }
 };
 
+const exportQuestions = async (req, res, next) => {
+  try {
+    const { format = 'csv', topicId, difficulty } = req.query;
+    const where = { is_active: true };
+    if (topicId) where.topic_id = topicId;
+    if (difficulty) where.difficulty = difficulty;
+
+    const questions = await Question.findAll({
+      where,
+      include: [
+        { model: Topic, as: 'topic', attributes: ['id', 'name'] },
+        { model: Subtopic, as: 'subtopic', attributes: ['id', 'name'] },
+      ],
+      order: [['id', 'ASC']],
+    });
+
+    const exportData = questions.map((q) => ({
+      id: q.id,
+      question: q.question,
+      optionA: q.option_a,
+      optionB: q.option_b,
+      optionC: q.option_c,
+      optionD: q.option_d,
+      correctOption: q.correct_option,
+      explanation: q.explanation || '',
+      topic: q.topic ? q.topic.name : '',
+      subtopic: q.subtopic ? q.subtopic.name : '',
+      difficulty: q.difficulty,
+      language: q.language || 'Punjabi',
+      source: q.source || '',
+    }));
+
+    if (format.toLowerCase() === 'csv') {
+      const headers = ['id', 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation', 'topic', 'subtopic', 'difficulty', 'language', 'source'];
+
+      const escapeCSVField = (field) => {
+        if (field === null || field === undefined) return '""';
+        const str = String(field).replace(/"/g, '""');
+        return `"${str}"`;
+      };
+
+      const csvRows = [
+        headers.join(','),
+        ...exportData.map((row) =>
+          headers.map((h) => escapeCSVField(row[h])).join(',')
+        ),
+      ];
+
+      // Add UTF-8 BOM so Excel & OS CSV readers correctly parse Punjabi Gurmukhi text
+      const csvString = '\uFEFF' + csvRows.join('\n');
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="questions_export.csv"');
+      return res.status(200).send(csvString);
+    } else {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="questions_export.json"');
+      return res.status(200).send(JSON.stringify(exportData, null, 2));
+    }
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   listQuestions,
   createQuestion,
@@ -268,4 +332,5 @@ module.exports = {
   importQuestions,
   importQuestionsJSON,
   generatePreview,
+  exportQuestions,
 };
