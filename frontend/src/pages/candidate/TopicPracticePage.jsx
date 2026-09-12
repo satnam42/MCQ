@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import QuestionRepetitionSelector from '../../components/QuestionRepetitionSelector';
@@ -16,6 +16,28 @@ const TopicPracticePage = () => {
     return localStorage.getItem('question_repetition_preference') || 'mix';
   });
   const [loading, setLoading] = useState(true);
+
+  const settingsRef = useRef(null);
+
+  const handleTopicSelect = (topic) => {
+    setSelectedTopic(topic);
+
+    // Mobile-specific smooth scroll to Practice Settings container
+    if (window.innerWidth < 1024 && settingsRef.current) {
+      requestAnimationFrame(() => {
+        settingsRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        });
+      });
+      setTimeout(() => {
+        settingsRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        });
+      }, 80);
+    }
+  };
 
   useEffect(() => {
     const fetchTopics = async () => {
@@ -124,7 +146,7 @@ const TopicPracticePage = () => {
               return (
                 <div
                   key={t.id}
-                  onClick={() => setSelectedTopic(t)}
+                  onClick={() => handleTopicSelect(t)}
                   className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
                     isSelected
                       ? 'border-amber-500 bg-amber-50/60 shadow-md scale-[1.02]'
@@ -156,7 +178,7 @@ const TopicPracticePage = () => {
         </div>
 
         {/* Right Column: Practice Configuration Panel */}
-        <div className="lg:col-span-1 bg-white rounded-3xl p-6 shadow-sm border border-slate-200 space-y-6 sticky top-20">
+        <div ref={settingsRef} className="lg:col-span-1 bg-white rounded-3xl p-6 shadow-sm border border-slate-200 space-y-6 sticky top-20 scroll-mt-20 sm:scroll-mt-24">
           <h3 className="text-lg font-bold text-slate-900 flex items-center space-x-2 border-b border-slate-100 pb-3">
             <Filter className="w-5 h-5 text-amber-500" />
             <span>Practice Settings</span>
