@@ -1,4 +1,5 @@
-const { Topic, Subtopic, Question, sequelize } = require('../models');
+const { Topic, Subtopic, Question, DailyQuizQuestion, TestAnswer, TestAttempt, sequelize } = require('../models');
+const { Op } = require('sequelize');
 const questionGeneratorService = require('../services/questionGeneratorService');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
 
@@ -82,7 +83,94 @@ const getTopicQuestions = async (req, res, next) => {
   }
 };
 
+const deleteTopic = async (req, res, next) => {
+  const t = await sequelize.transaction();
+  try {
+    const { topicId } = req.params;
+
+    if (!topicId || isNaN(parseInt(topicId, 10))) {
+      await t.rollback();
+      return errorResponse(res, 'Invalid topic ID', 'INVALID_TOPIC_ID', 400);
+    }
+
+    const topic = await Topic.findByPk(topicId, { transaction: t });
+    if (!topic) {
+      await t.rollback();
+      return errorResponse(res, 'Topic not found', 'TOPIC_NOT_FOUND', 404);
+    }
+
+    const topicName = topic.name;
+
+    // Count questions belonging to topic
+    const questionCount = await Question.count({
+      where: { topic_id: topicId },
+      transaction: t,
+    });
+
+    // Fetch question IDs to clean up related junction/reference tables
+    const questions = await Question.findAll({
+      where: { topic_id: topicId },
+      attributes: ['id'],
+      transaction: t,
+    });
+    const questionIds = questions.map((q) => q.id);
+
+    if (questionIds.length > 0) {
+      if (DailyQuizQuestion) {
+        await DailyQuizQuestion.destroy({
+          where: { question_id: { [Op.in]: questionIds } },
+          transaction: t,
+        });
+      }
+
+      if (TestAnswer) {
+        await TestAnswer.destroy({
+          where: { question_id: { [Op.in]: questionIds } },
+          transaction: t,
+        });
+      }
+
+      await Question.destroy({
+        where: { topic_id: topicId },
+        transaction: t,
+      });
+    }
+
+    if (Subtopic) {
+      await Subtopic.destroy({
+        where: { topic_id: topicId },
+        transaction: t,
+      });
+    }
+
+    if (TestAttempt) {
+      await TestAttempt.destroy({
+        where: { topic_id: topicId },
+        transaction: t,
+      });
+    }
+
+    await topic.destroy({ transaction: t });
+
+    await t.commit();
+
+    return successResponse(
+      res,
+      {
+        topicId: parseInt(topicId, 10),
+        topicName,
+        deletedQuestions: questionCount,
+      },
+      'Topic deleted successfully'
+    );
+  } catch (err) {
+    await t.rollback();
+    next(err);
+  }
+};
+
 module.exports = {
   getTopics,
   getTopicQuestions,
+  deleteTopic,
 };

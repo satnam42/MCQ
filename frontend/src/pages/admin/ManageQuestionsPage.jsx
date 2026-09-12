@@ -1,15 +1,23 @@
 import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import DifficultyBadge from '../../components/DifficultyBadge';
-import { Search, Plus, Edit3, Trash2, CheckCircle2, XCircle, Download, FileText } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, CheckCircle2, XCircle, Download, FileText, BookOpen } from 'lucide-react';
 
 const ManageQuestionsPage = () => {
+  const location = useLocation();
+
+  // Read URL query params (e.g. /admin/questions?topicId=12)
+  const searchParams = new URLSearchParams(location.search);
+  const initialTopic = searchParams.get('topicId') || '';
+  const initialDifficulty = searchParams.get('difficulty') || '';
+
   const [questions, setQuestions] = useState([]);
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [selectedTopic, setSelectedTopic] = useState('');
-  const [selectedDifficulty, setSelectedDifficulty] = useState('');
+  const [selectedTopic, setSelectedTopic] = useState(initialTopic);
+  const [selectedDifficulty, setSelectedDifficulty] = useState(initialDifficulty);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -94,6 +102,14 @@ const ManageQuestionsPage = () => {
     };
     fetchTopics();
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const topicParam = params.get('topicId') || '';
+    const diffParam = params.get('difficulty') || '';
+    setSelectedTopic(topicParam);
+    setSelectedDifficulty(diffParam);
+  }, [location.search]);
 
   useEffect(() => {
     setSelectedIds([]);
@@ -237,6 +253,14 @@ const ManageQuestionsPage = () => {
               <span>Delete Selected ({selectedIds.length})</span>
             </button>
           )}
+          <Link
+            to="/admin/topics"
+            className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 font-bold rounded-xl text-xs transition-all flex items-center space-x-1.5"
+            title="View and manage topics"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Manage Topics</span>
+          </Link>
           <button
             onClick={() => handleExport('csv')}
             className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold rounded-xl text-xs transition-all flex items-center space-x-1.5"

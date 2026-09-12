@@ -120,6 +120,21 @@ const AdminDashboard = () => {
         </Link>
 
         <Link
+          to="/admin/topics"
+          className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md hover:border-purple-400 transition-all group"
+        >
+          <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+            <BookOpen className="w-6 h-6" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-900 mb-1">
+            Manage Topics & Subtopics
+          </h3>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            View topics, check question density, and perform topic deletion with safe transactional question cleanup.
+          </p>
+        </Link>
+
+        <Link
           to="/admin/ai-generator"
           className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md hover:border-purple-400 transition-all group"
         >

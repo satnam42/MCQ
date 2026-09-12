@@ -23,6 +23,7 @@ import ReattemptIncorrectPage from './pages/candidate/ReattemptIncorrectPage';
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ManageQuestionsPage from './pages/admin/ManageQuestionsPage';
+import ManageTopicsPage from './pages/admin/ManageTopicsPage';
 import ImportQuestionsPage from './pages/admin/ImportQuestionsPage';
 import AIQuestionGenPage from './pages/admin/AIQuestionGenPage';
 
@@ -126,6 +127,14 @@ function App() {
                 element={
                   <AdminRoute>
                     <ManageQuestionsPage />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/topics"
+                element={
+                  <AdminRoute>
+                    <ManageTopicsPage />
                   </AdminRoute>
                 }
               />
