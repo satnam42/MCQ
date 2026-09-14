@@ -19,6 +19,7 @@ import PracticeSessionPage from './pages/candidate/PracticeSessionPage';
 import ProgressDashboardPage from './pages/candidate/ProgressDashboardPage';
 import TestHistoryPage from './pages/candidate/TestHistoryPage';
 import ReattemptIncorrectPage from './pages/candidate/ReattemptIncorrectPage';
+import StudyNotesPage from './pages/candidate/StudyNotesPage';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -26,6 +27,7 @@ import ManageQuestionsPage from './pages/admin/ManageQuestionsPage';
 import ManageTopicsPage from './pages/admin/ManageTopicsPage';
 import ImportQuestionsPage from './pages/admin/ImportQuestionsPage';
 import AIQuestionGenPage from './pages/admin/AIQuestionGenPage';
+import ManageNotesPage from './pages/admin/ManageNotesPage';
 
 function App() {
   return (
@@ -53,6 +55,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <CandidateDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/study-notes"
+                element={
+                  <ProtectedRoute>
+                    <StudyNotesPage />
                   </ProtectedRoute>
                 }
               />
@@ -123,6 +133,14 @@ function App() {
                 }
               />
               <Route
+                path="/admin/notes"
+                element={
+                  <AdminRoute>
+                    <ManageNotesPage />
+                  </AdminRoute>
+                }
+              />
+              <Route
                 path="/admin/questions"
                 element={
                   <AdminRoute>
@@ -165,5 +183,6 @@ function App() {
     </Router>
   );
 }
+
 
 export default App;

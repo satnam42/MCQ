@@ -12,7 +12,133 @@ body {
   font-family: 'Noto Sans Gurmukhi', sans-serif;
 }
 
-/* Custom Palette Navigator Scrollbar */
+/* Notes Management System Typography & Hierarchy */
+.notes-container {
+  font-family: 'Noto Sans Gurmukhi', 'Nirmala UI', 'Raavi', sans-serif;
+  color: #1e293b;
+  line-height: 1.6;
+}
+
+/* 1. Main Title with Left Accent Bar */
+.notes-title,
+.notes-main-title,
+.notes-container h1 {
+  font-size: 2.25rem !important;
+  font-weight: 900 !important;
+  line-height: 1.25 !important;
+  color: #78350f !important;
+  padding-left: 16px !important;
+  border-left: 5px solid #d97706 !important;
+  margin-top: 12px !important;
+  margin-bottom: 28px !important;
+  letter-spacing: -0.3px !important;
+  display: block !important;
+}
+
+/* 2. Section Titles */
+.notes-section-title,
+.notes-container h2 {
+  font-size: 1.35rem !important;
+  font-weight: 800 !important;
+  line-height: 1.4 !important;
+  color: #78350f !important;
+  margin-top: 28px !important;
+  margin-bottom: 12px !important;
+  border-bottom: 2px solid #fde68a !important;
+  padding-bottom: 6px !important;
+  display: block !important;
+}
+
+/* 3. Sub-section Titles */
+.notes-subsection-title,
+.notes-container h3 {
+  font-size: 1.2rem !important;
+  font-weight: 800 !important;
+  line-height: 1.4 !important;
+  color: #92400e !important;
+  background-color: #fef3c7 !important;
+  padding: 6px 14px !important;
+  border-radius: 8px !important;
+  border-left: 4px solid #d97706 !important;
+  display: inline-block !important;
+  margin-top: 24px !important;
+  margin-bottom: 12px !important;
+}
+
+/* 4. Unordered Star Bullet Lists */
+.notes-list,
+.notes-container ul {
+  list-style: none !important;
+  padding-left: 0 !important;
+  margin-top: 10px !important;
+  margin-bottom: 20px !important;
+}
+
+.notes-list li,
+.notes-container ul li {
+  position: relative !important;
+  padding-left: 26px !important;
+  margin-bottom: 10px !important;
+  font-size: 1.05rem !important;
+  color: #1e293b !important;
+  line-height: 1.65 !important;
+  font-weight: 500 !important;
+}
+
+.notes-list li::before,
+.notes-container ul li::before {
+  content: "★" !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  color: #d97706 !important;
+  font-weight: 800 !important;
+  font-size: 1.15rem !important;
+}
+
+.notes-list li strong,
+.notes-paragraph strong,
+.notes-container strong {
+  font-weight: 700 !important;
+  color: #0f172a !important;
+}
+
+.notes-paragraph,
+.notes-container p {
+  font-size: 1.05rem !important;
+  margin-top: 8px !important;
+  margin-bottom: 12px !important;
+  color: #334155 !important;
+}
+
+/* Mobile Responsive Typography Adjustments */
+@media (max-width: 768px) {
+  .notes-title,
+  .notes-main-title,
+  .notes-container h1 {
+    font-size: 1.75rem !important;
+    font-weight: 900 !important;
+    padding-left: 12px !important;
+    border-left-width: 4px !important;
+    margin-bottom: 20px !important;
+  }
+
+  .notes-section-title,
+  .notes-container h2 {
+    font-size: 1.2rem !important;
+    font-weight: 800 !important;
+    margin-top: 22px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .notes-list li,
+  .notes-container ul li {
+    font-size: 0.98rem !important;
+    padding-left: 22px !important;
+  }
+}
+
+/* Custom Scrollbar */
 .palette-scroll::-webkit-scrollbar {
   width: 6px;
   height: 6px;

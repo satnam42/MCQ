@@ -169,8 +169,35 @@ const deleteTopic = async (req, res, next) => {
   }
 };
 
+const createTopic = async (req, res, next) => {
+  try {
+    const { name, description } = req.body;
+    if (!name || !name.trim()) {
+      return errorResponse(res, 'Topic name is required', 'TOPIC_NAME_REQUIRED', 400);
+    }
+
+    const trimmedName = name.trim();
+    let topic = await Topic.findOne({ where: { name: trimmedName } });
+    if (topic) {
+      return successResponse(res, { topic }, 'Topic already exists');
+    }
+
+    topic = await Topic.create({
+      name: trimmedName,
+      description: description || `ਪੰਜਾਬੀ ਲੈਕਚਰਾਰ ਕੈਡਰ - ${trimmedName}`,
+      is_active: true,
+    });
+
+    return successResponse(res, { topic }, 'Topic created successfully', 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getTopics,
   getTopicQuestions,
   deleteTopic,
+  createTopic,
 };
+
