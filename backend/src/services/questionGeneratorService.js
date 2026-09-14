@@ -1,4 +1,4 @@
-const { Question, Topic, Subtopic, TestAttempt, TestAnswer, sequelize } = require('../models');
+const { Question, Topic, Subtopic, TestAttempt, TestAnswer, UserAnsweredQuestion, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 /**
@@ -20,7 +20,7 @@ class LocalQuestionGeneratorStrategy extends BaseQuestionGeneratorStrategy {
     limit = 50,
     language = 'Punjabi',
     userId = null,
-    repetitionMode = 'mix',
+    repetitionMode = 'only_new',
   }) {
     const numLimit = parseInt(limit, 10) || 50;
     const baseWhere = { is_active: true };
@@ -30,9 +30,19 @@ class LocalQuestionGeneratorStrategy extends BaseQuestionGeneratorStrategy {
       baseWhere.difficulty = difficulty.toLowerCase();
     }
 
-    let attemptedAnswers = [];
+    const answeredQuestionIds = new Set();
+    const incorrectAttemptedIds = new Set();
+
     if (userId) {
-      attemptedAnswers = await TestAnswer.findAll({
+      // 1. Query permanent answered questions table
+      const userAnswers = await UserAnsweredQuestion.findAll({
+        where: { user_id: userId },
+        attributes: ['question_id'],
+      });
+      userAnswers.forEach((ans) => answeredQuestionIds.add(ans.question_id));
+
+      // 2. Query legacy test answers for backward compatibility
+      const legacyAnswers = await TestAnswer.findAll({
         include: [
           {
             model: TestAttempt,
@@ -41,67 +51,26 @@ class LocalQuestionGeneratorStrategy extends BaseQuestionGeneratorStrategy {
             attributes: [],
           },
         ],
-        attributes: ['question_id', 'is_correct', 'created_at'],
-        order: [['created_at', 'DESC']],
+        attributes: ['question_id', 'is_correct'],
+      });
+      legacyAnswers.forEach((ans) => {
+        answeredQuestionIds.add(ans.question_id);
+        if (ans.is_correct === false) {
+          incorrectAttemptedIds.add(ans.question_id);
+        }
       });
     }
 
-    const allAttemptedIds = new Set();
-    const incorrectAttemptedIds = new Set();
+    const answeredIdsArray = Array.from(answeredQuestionIds);
 
-    attemptedAnswers.forEach((ans) => {
-      allAttemptedIds.add(ans.question_id);
-      if (ans.is_correct === false) {
-        incorrectAttemptedIds.add(ans.question_id);
-      }
-    });
-
-    const attemptedIdsArray = Array.from(allAttemptedIds);
-    let selectedQuestions = [];
-
-    if (repetitionMode === 'only_new' && attemptedIdsArray.length > 0) {
-      // Fetch ONLY questions user has never attempted before
-      const newWhere = {
-        ...baseWhere,
-        id: { [Op.notIn]: attemptedIdsArray },
-      };
-
-      selectedQuestions = await Question.findAll({
-        where: newWhere,
-        limit: numLimit,
-        include: [
-          { model: Topic, as: 'topic', attributes: ['id', 'name'] },
-          { model: Subtopic, as: 'subtopic', attributes: ['id', 'name'] },
-        ],
-        order: sequelize.random(),
-      });
-
-      // Fallback if not enough new questions exist to satisfy numLimit:
-      if (selectedQuestions.length < numLimit) {
-        const existingIds = new Set(selectedQuestions.map((q) => q.id));
-        const additional = await Question.findAll({
-          where: {
-            ...baseWhere,
-            id: { [Op.notIn]: Array.from(existingIds) },
-          },
-          limit: numLimit - selectedQuestions.length,
-          include: [
-            { model: Topic, as: 'topic', attributes: ['id', 'name'] },
-            { model: Subtopic, as: 'subtopic', attributes: ['id', 'name'] },
-          ],
-          order: sequelize.random(),
-        });
-        selectedQuestions = [...selectedQuestions, ...additional];
-      }
-    } else if (repetitionMode === 'mix' && attemptedIdsArray.length > 0) {
-      // Mix Previous + New Questions
+    // If explicit 'mix' mode requested, allow mixing previous + new questions (preferring incorrect ones)
+    if (repetitionMode === 'mix' && answeredIdsArray.length > 0) {
       const targetPreviousCount = Math.floor(numLimit / 2);
 
-      // 1. Fetch attempted questions pool matching filters
       const attemptedPool = await Question.findAll({
         where: {
           ...baseWhere,
-          id: { [Op.in]: attemptedIdsArray },
+          id: { [Op.in]: answeredIdsArray },
         },
         include: [
           { model: Topic, as: 'topic', attributes: ['id', 'name'] },
@@ -109,7 +78,6 @@ class LocalQuestionGeneratorStrategy extends BaseQuestionGeneratorStrategy {
         ],
       });
 
-      // Split into incorrect vs correct (prefer questions answered incorrectly)
       const incorrectPool = attemptedPool.filter((q) => incorrectAttemptedIds.has(q.id));
       const correctPool = attemptedPool.filter((q) => !incorrectAttemptedIds.has(q.id));
 
@@ -128,11 +96,10 @@ class LocalQuestionGeneratorStrategy extends BaseQuestionGeneratorStrategy {
         }
       }
 
-      // 2. Fetch new questions pool (not attempted)
       const neededNewCount = numLimit - pickedPrevious.length;
       const newWhere = {
         ...baseWhere,
-        id: { [Op.notIn]: attemptedIdsArray },
+        id: { [Op.notIn]: answeredIdsArray },
       };
 
       const pickedNew = await Question.findAll({
@@ -145,9 +112,8 @@ class LocalQuestionGeneratorStrategy extends BaseQuestionGeneratorStrategy {
         order: sequelize.random(),
       });
 
-      selectedQuestions = [...pickedPrevious, ...pickedNew];
+      let selectedQuestions = [...pickedPrevious, ...pickedNew];
 
-      // If still under numLimit, pick remaining from any other questions not yet included
       if (selectedQuestions.length < numLimit) {
         const currentIds = new Set(selectedQuestions.map((q) => q.id));
         const extra = await Question.findAll({
@@ -165,12 +131,71 @@ class LocalQuestionGeneratorStrategy extends BaseQuestionGeneratorStrategy {
         selectedQuestions = [...selectedQuestions, ...extra];
       }
 
-      // Shuffle final combined list so previous and new are randomly mixed
-      selectedQuestions = this.shuffleArray(selectedQuestions);
-    } else {
-      // Standard random generation (no attempts yet or fallback)
+      const formatted = this.shuffleArray(selectedQuestions).map((q) => ({
+        id: q.id,
+        question: q.question,
+        optionA: q.option_a,
+        optionB: q.option_b,
+        optionC: q.option_c,
+        optionD: q.option_d,
+        options: {
+          A: q.option_a,
+          B: q.option_b,
+          C: q.option_c,
+          D: q.option_d,
+        },
+        correctOption: q.correct_option,
+        explanation: q.explanation,
+        topicId: q.topic_id,
+        topic: q.topic ? q.topic.name : '',
+        topicName: q.topic ? q.topic.name : '',
+        subtopic: q.subtopic ? q.subtopic.name : '',
+        subtopicName: q.subtopic ? q.subtopic.name : '',
+        difficulty: q.difficulty,
+        source: q.source || 'Local Database',
+      }));
+
+      return formatted;
+    }
+
+    // Default / Strict 'only_new' Exclusion Logic:
+    const unansweredWhere = { ...baseWhere };
+    if (answeredIdsArray.length > 0) {
+      unansweredWhere.id = { [Op.notIn]: answeredIdsArray };
+    }
+
+    const totalPoolCount = await Question.count({ where: baseWhere });
+    const unansweredCount = await Question.count({ where: unansweredWhere });
+
+    let selectedQuestions = [];
+
+    // Case 1: Question Bank Exhausted (0 unanswered questions remaining)
+    if (unansweredCount === 0 && totalPoolCount > 0 && userId) {
+      const resultList = [];
+      resultList.isExhausted = true;
+      resultList.message =
+        'You have completed all available questions in this topic. You can now restart the question bank.';
+      resultList.totalQuestions = totalPoolCount;
+      resultList.answeredQuestions = totalPoolCount;
+      resultList.unansweredQuestions = 0;
+      return resultList;
+    }
+
+    // Case 2: Partial Remaining Questions (e.g., requested 20, but only 5 remaining)
+    if (unansweredCount < numLimit && unansweredCount > 0 && userId) {
       selectedQuestions = await Question.findAll({
-        where: baseWhere,
+        where: unansweredWhere,
+        limit: unansweredCount,
+        include: [
+          { model: Topic, as: 'topic', attributes: ['id', 'name'] },
+          { model: Subtopic, as: 'subtopic', attributes: ['id', 'name'] },
+        ],
+        order: sequelize.random(),
+      });
+    } else {
+      // Case 3: Normal Selection (unansweredCount >= numLimit or no userId filter)
+      selectedQuestions = await Question.findAll({
+        where: unansweredWhere,
         limit: numLimit,
         include: [
           { model: Topic, as: 'topic', attributes: ['id', 'name'] },
@@ -180,7 +205,7 @@ class LocalQuestionGeneratorStrategy extends BaseQuestionGeneratorStrategy {
       });
     }
 
-    return selectedQuestions.map((q) => ({
+    const formatted = selectedQuestions.map((q) => ({
       id: q.id,
       question: q.question,
       optionA: q.option_a,
@@ -203,6 +228,27 @@ class LocalQuestionGeneratorStrategy extends BaseQuestionGeneratorStrategy {
       difficulty: q.difficulty,
       source: q.source || 'Local Database',
     }));
+
+    // Attach exhaustion & partial metadata onto array for response formatters
+    if (unansweredCount < numLimit && unansweredCount > 0 && userId) {
+      formatted.isExhausted = false;
+      formatted.partialRemaining = true;
+      formatted.message = `Only ${selectedQuestions.length} new questions are remaining in this topic.`;
+      formatted.requestedLimit = numLimit;
+      formatted.returnedCount = selectedQuestions.length;
+      formatted.remainingCount = selectedQuestions.length;
+      formatted.totalQuestions = totalPoolCount;
+      formatted.answeredQuestions = totalPoolCount - selectedQuestions.length;
+      formatted.unansweredQuestions = selectedQuestions.length;
+    } else {
+      formatted.isExhausted = false;
+      formatted.partialRemaining = false;
+      formatted.totalQuestions = totalPoolCount;
+      formatted.answeredQuestions = totalPoolCount - unansweredCount;
+      formatted.unansweredQuestions = unansweredCount;
+    }
+
+    return formatted;
   }
 
   shuffleArray(array) {
@@ -228,8 +274,6 @@ class OpenAIQuestionGeneratorStrategy extends BaseQuestionGeneratorStrategy {
     if (!this.apiKey) {
       throw new Error('OpenAI API key is not configured. Please set OPENAI_API_KEY in .env');
     }
-    // Future OpenAI GPT-4/GPT-3.5 API call implementation
-    // Prompts Punjabi Lecturer Cadre MCQs in JSON format with strict validation before publishing.
     return [
       {
         question: `[AI Generated Stub] ਪੰਜਾਬੀ ${topicName || 'ਸਾਹਿਤ'} ਨਾਲ ਸੰਬੰਧਿਤ ਪ੍ਰਸ਼ਨ`,

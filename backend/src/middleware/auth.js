@@ -53,7 +53,34 @@ const authorize = (roles = []) => {
   };
 };
 
+/**
+ * Optional Authentication Middleware
+ * Attaches req.user if a valid Bearer token is present, but allows request to continue if missing.
+ */
+const optionalAuthenticate = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      const decoded = jwt.verify(token, jwtConfig.secret);
+      const user = await User.findByPk(decoded.id);
+      if (user) {
+        req.user = {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        };
+      }
+    }
+  } catch (err) {
+    // Silently continue if token is missing or invalid
+  }
+  next();
+};
+
 module.exports = {
   authenticate,
+  optionalAuthenticate,
   authorize,
 };

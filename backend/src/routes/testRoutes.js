@@ -6,6 +6,7 @@ const { authenticate } = require('../middleware/auth');
 router.use(authenticate);
 
 router.post('/start', testController.startTest);
+router.post('/reset-bank', testController.resetQuestionBank);
 router.post('/:attemptId/submit', testController.submitTest);
 router.get('/history', testController.getHistory);
 router.get('/incorrect-questions', testController.getIncorrectQuestions);
