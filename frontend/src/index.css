@@ -2,21 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: 'Inter', 'Noto Sans Gurmukhi', -apple-system, BlinkMacSystemFont, sans-serif;
   background-color: #f8fafc;
   color: #0f172a;
 }
 
+.scroll-mt-header {
+  scroll-margin-top: 90px;
+}
+
 .font-gurmukhi {
   font-family: 'Noto Sans Gurmukhi', sans-serif;
 }
 
-/* Notes Management System Typography & Hierarchy */
+/* Competitive Exam Study Notes Styling & Hierarchy */
 .notes-container {
   font-family: 'Noto Sans Gurmukhi', 'Nirmala UI', 'Raavi', sans-serif;
   color: #1e293b;
-  line-height: 1.6;
+  line-height: 1.7;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* 1. Main Title with Left Accent Bar */
@@ -35,21 +46,61 @@ body {
   display: block !important;
 }
 
-/* 2. Section Titles */
+/* 2. Standard Study Section Card */
+.notes-section-card {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 16px !important;
+  padding: 24px !important;
+  margin-bottom: 24px !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+.notes-section-card:hover {
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07) !important;
+}
+
+/* 3. Important Exam Facts Highlight Box Card */
+.notes-exam-facts-card {
+  background: linear-gradient(135deg, #fffbe6 0%, #fef3c7 100%) !important;
+  border: 2px solid #f59e0b !important;
+  border-radius: 16px !important;
+  padding: 24px !important;
+  margin-bottom: 28px !important;
+  box-shadow: 0 4px 12px -2px rgba(217, 119, 6, 0.12) !important;
+  position: relative !important;
+}
+
+.notes-exam-facts-card .notes-section-title {
+  color: #92400e !important;
+  border-bottom: 2px solid #fcd34d !important;
+  padding-bottom: 8px !important;
+}
+
+/* 4. Section Headings */
 .notes-section-title,
 .notes-container h2 {
   font-size: 1.35rem !important;
   font-weight: 800 !important;
   line-height: 1.4 !important;
   color: #78350f !important;
-  margin-top: 28px !important;
-  margin-bottom: 12px !important;
+  margin-top: 0 !important;
+  margin-bottom: 16px !important;
   border-bottom: 2px solid #fde68a !important;
   padding-bottom: 6px !important;
-  display: block !important;
+  display: flex !important;
+  items-center: center !important;
 }
 
-/* 3. Sub-section Titles */
+.notes-accent-indicator {
+  color: #d97706 !important;
+  font-weight: 900 !important;
+  margin-right: 8px !important;
+  display: inline-block !important;
+}
+
 .notes-subsection-title,
 .notes-container h3 {
   font-size: 1.2rem !important;
@@ -61,17 +112,17 @@ body {
   border-radius: 8px !important;
   border-left: 4px solid #d97706 !important;
   display: inline-block !important;
-  margin-top: 24px !important;
+  margin-top: 16px !important;
   margin-bottom: 12px !important;
 }
 
-/* 4. Unordered Star Bullet Lists */
+/* 5. Unordered Star Bullet Lists */
 .notes-list,
 .notes-container ul {
   list-style: none !important;
   padding-left: 0 !important;
-  margin-top: 10px !important;
-  margin-bottom: 20px !important;
+  margin-top: 8px !important;
+  margin-bottom: 8px !important;
 }
 
 .notes-list li,
@@ -111,30 +162,38 @@ body {
   color: #334155 !important;
 }
 
-/* Mobile Responsive Typography Adjustments */
+/* 6. Mobile Responsive Adjustments */
 @media (max-width: 768px) {
   .notes-title,
   .notes-main-title,
   .notes-container h1 {
-    font-size: 1.75rem !important;
+    font-size: 1.7rem !important;
     font-weight: 900 !important;
     padding-left: 12px !important;
     border-left-width: 4px !important;
     margin-bottom: 20px !important;
   }
 
+  .notes-section-card,
+  .notes-exam-facts-card {
+    padding: 16px !important;
+    border-radius: 12px !important;
+    margin-bottom: 18px !important;
+  }
+
   .notes-section-title,
   .notes-container h2 {
     font-size: 1.2rem !important;
     font-weight: 800 !important;
-    margin-top: 22px !important;
-    margin-bottom: 10px !important;
+    margin-bottom: 12px !important;
   }
 
   .notes-list li,
   .notes-container ul li {
     font-size: 0.98rem !important;
     padding-left: 22px !important;
+    margin-bottom: 8px !important;
+    line-height: 1.7 !important;
   }
 }
 

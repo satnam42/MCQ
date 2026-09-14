@@ -64,7 +64,6 @@ const DownloadPdfButton = ({ note, topicName }) => {
       }
 
       const noteHtml = note.html_content || note.htmlContent || '';
-      const topicTitle = topicName || (note.topic ? note.topic.name : 'ਪੰਜਾਬੀ ਸਾਹਿਤ');
 
       printWindow.document.write(`
         <!DOCTYPE html>
@@ -74,7 +73,7 @@ const DownloadPdfButton = ({ note, topicName }) => {
           <title>${note.title || 'Punjabi Notes'}</title>
           <link rel="preconnect" href="https://fonts.googleapis.com">
           <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-          <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gurmukhi:wght@400;600;700;800&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gurmukhi:wght@400;600;700;800;900&display=swap" rel="stylesheet">
           <style>
             @page {
               size: A4;
@@ -83,7 +82,7 @@ const DownloadPdfButton = ({ note, topicName }) => {
             body {
               font-family: 'Noto Sans Gurmukhi', 'Nirmala UI', 'Raavi', sans-serif;
               color: #1e293b;
-              line-height: 1.6;
+              line-height: 1.7;
               margin: 0;
               padding: 20px;
               background-color: #ffffff;
@@ -100,89 +99,87 @@ const DownloadPdfButton = ({ note, topicName }) => {
               font-size: 24px;
               font-weight: 800;
               color: #78350f;
-              margin: 0 0 6px 0;
-            }
-            .header-topic {
-              font-size: 13px;
-              font-weight: 700;
-              color: #b45309;
-              background-color: #fef3c7;
-              padding: 3px 10px;
-              border-radius: 20px;
-              display: inline-block;
+              margin: 0;
             }
             .header-right {
               text-align: right;
               font-size: 11px;
               color: #64748b;
             }
-            .notes-main-title {
-              font-size: 22px;
-              font-weight: 800;
-              color: #78350f;
-              margin-top: 16px;
-              margin-bottom: 16px;
-              border-bottom: 2px solid #d97706;
-              padding-bottom: 6px;
+            .notes-container {
+              max-width: 800px;
+              margin: 0 auto;
+            }
+            .notes-title, .notes-main-title, h1 {
+              font-size: 2rem !important;
+              font-weight: 900 !important;
+              color: #78350f !important;
+              padding-left: 14px !important;
+              border-left: 5px solid #d97706 !important;
+              margin-top: 12px !important;
+              margin-bottom: 24px !important;
+            }
+            .notes-section-card {
+              border: 1px solid #cbd5e1 !important;
+              border-radius: 12px !important;
+              padding: 18px !important;
+              margin-bottom: 20px !important;
+              background-color: #ffffff !important;
+            }
+            .notes-exam-facts-card {
+              border: 2px solid #f59e0b !important;
+              border-radius: 12px !important;
+              padding: 18px !important;
+              margin-bottom: 24px !important;
+              background-color: #fffbe6 !important;
             }
             .notes-section-title, h2 {
-              font-size: 1.35rem;
-              font-weight: 800;
-              color: #78350f;
-              margin-top: 24px;
-              margin-bottom: 12px;
-              border-bottom: 2px solid #fde68a;
-              padding-bottom: 6px;
-              display: block;
+              font-size: 1.3rem !important;
+              font-weight: 800 !important;
+              color: #78350f !important;
+              margin-top: 0 !important;
+              margin-bottom: 12px !important;
+              border-bottom: 2px solid #fde68a !important;
+              padding-bottom: 6px !important;
             }
-            .notes-subsection-title, h3 {
-              font-size: 1.2rem;
-              font-weight: 800;
-              color: #92400e;
-              background-color: #fef3c7;
-              padding: 6px 14px;
-              border-radius: 8px;
-              border-left: 4px solid #d97706;
-              display: inline-block;
-              margin-top: 20px;
-              margin-bottom: 12px;
+            .notes-accent-indicator {
+              color: #d97706 !important;
+              font-weight: 900 !important;
+              margin-right: 6px !important;
             }
             .notes-list, ul {
-              list-style: none;
-              padding-left: 0;
-              margin-top: 10px;
-              margin-bottom: 20px;
+              list-style: none !important;
+              padding-left: 0 !important;
+              margin-top: 8px !important;
+              margin-bottom: 8px !important;
             }
             .notes-list li, ul li {
-              position: relative;
-              padding-left: 26px;
-              margin-bottom: 10px;
-              font-size: 1.05rem;
-              color: #1e293b;
-              line-height: 1.65;
-              font-weight: 500;
+              position: relative !important;
+              padding-left: 24px !important;
+              margin-bottom: 8px !important;
+              font-size: 1rem !important;
+              color: #1e293b !important;
+              line-height: 1.6 !important;
             }
             .notes-list li::before, ul li::before {
-              content: "★";
-              position: absolute;
-              left: 0;
-              top: 0;
-              color: #d97706;
-              font-weight: 800;
-              font-size: 1.15rem;
+              content: "★" !important;
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
+              color: #d97706 !important;
+              font-weight: 800 !important;
             }
             strong {
-              font-weight: 700;
-              color: #0f172a;
+              font-weight: 700 !important;
+              color: #0f172a !important;
             }
             p {
-              font-size: 1.05rem;
-              margin-top: 8px;
-              margin-bottom: 12px;
-              color: #334155;
+              font-size: 1rem !important;
+              margin-top: 6px !important;
+              margin-bottom: 10px !important;
             }
             .footer-note {
-              margin-top: 40px;
+              margin-top: 30px;
               border-top: 1px solid #e2e8f0;
               padding-top: 8px;
               font-size: 10px;
@@ -198,7 +195,6 @@ const DownloadPdfButton = ({ note, topicName }) => {
         <body>
           <div class="header-banner">
             <div>
-              <span class="header-topic">${topicTitle}</span>
               <h1 class="header-title">${note.title}</h1>
             </div>
             <div class="header-right">

@@ -59,6 +59,7 @@ async function seedDatabase() {
 
     // 2. Seed Standard Punjabi Literature Topics
     const standardTopics = [
+      'Punjabi authors',
       'ਭਾਈ ਵੀਰ ਸਿੰਘ',
       'ਧਨੀ ਰਾਮ ਚਾਤ੍ਰਿਕ',
       'ਪ੍ਰੋ. ਪੂਰਨ ਸਿੰਘ',
@@ -84,10 +85,10 @@ async function seedDatabase() {
       }
     }
 
-    // 3. Seed Sample Note for Bhai Veer Singh if not present
-    const bhaiVeerSinghTopic = await Topic.findOne({ where: { name: 'ਭਾਈ ਵੀਰ ਸਿੰਘ' } });
-    if (bhaiVeerSinghTopic) {
-      const noteCount = await Note.count({ where: { topic_id: bhaiVeerSinghTopic.id } });
+    // 3. Seed Sample Notes for Punjabi authors topic if not present
+    const punjabiAuthorsTopic = await Topic.findOne({ where: { name: 'Punjabi authors' } }) || await Topic.findOne({ where: { name: 'ਭਾਈ ਵੀਰ ਸਿੰਘ' } });
+    if (punjabiAuthorsTopic) {
+      const noteCount = await Note.count({ where: { topic_id: punjabiAuthorsTopic.id } });
       if (noteCount === 0) {
         const rawContent = `### ਭਾਈ ਵੀਰ ਸਿੰਘ
 
@@ -128,15 +129,84 @@ async function seedDatabase() {
 
         const htmlContent = sanitizeHtmlContent(parseTextToHtml(rawContent));
         await Note.create({
-          topic_id: bhaiVeerSinghTopic.id,
-          title: 'ਭਾਈ ਵੀਰ ਸਿੰਘ - ਜੀਵਨ ਅਤੇ ਰਚਨਾਵਾਂ',
+          topic_id: punjabiAuthorsTopic.id,
+          title: 'ਭਾਈ ਵੀਰ ਸਿੰਘ',
           original_file_name: 'bhai_veer_singh_notes.txt',
           raw_content: rawContent,
           html_content: htmlContent,
           status: 'active',
           created_by: admin ? admin.id : null,
         });
-        console.log('📝 Seeded initial study note for ਭਾਈ ਵੀਰ ਸਿੰਘ');
+
+        // Add Amrita Pritam sample note
+        const amritaContent = `### ਅੰਮ੍ਰਿਤਾ ਪ੍ਰੀਤਮ
+
+**ਜਨਮ/ਦੇਹਾਂਤ**
+
+- ਜਨਮ: **31 ਅਗਸਤ 1919, ਗੁਜਰਾਂਵਾਲਾ (ਪਾਕਿਸਤਾਨ)**
+- ਦੇਹਾਂਤ: **31 ਅਕਤੂਬਰ 2005, ਨਵੀਂ ਦਿੱਲੀ**
+
+**Major/Most Important Work**
+
+- **ਅੱਜ ਆਖਾਂ ਵਾਰਿਸ ਸ਼ਾਹ ਨੂੰ** (ਪ੍ਰਸਿੱਧ ਕਵਿਤਾ - ਦੇਸ਼ ਵੰਡ ਬਾਰੇ)
+- **ਪਿੰਜਰ** (ਮਸ਼ਹੂਰ ਨਾਵਲ)
+- **ਰਸੀਦੀ ਟਿਕਟ** (ਸਵੈ-ਜੀਵਨੀ)
+
+**Awards**
+
+- **ਗਿਆਨਪੀਠ ਪੁਰਸਕਾਰ**: 1981 ਵਿਚ (ਕਾਗਜ਼ ਤੇ ਕੈਨਵਸ ਲਈ)
+- **ਸਾਹਿਤ ਅਕਾਦਮੀ ਪੁਰਸਕਾਰ**: 1956 ਵਿਚ (ਸੁਨੇਹੜੇ ਲਈ)
+- **ਪਦਮ ਵਿਭੂਸ਼ਣ**: 2004
+
+**Important Exam Facts**
+
+- ਪੰਜਾਬੀ ਦੀ **ਪਹਿਲੀ ਲੇਖਿਕਾ** ਜਿਸ ਨੂੰ ਗਿਆਨਪੀਠ ਪੁਰਸਕਾਰ ਮਿਲਿਆ।
+- ਮਹੀਨਾਵਾਰ ਰਸਾਲਾ **ਨਾਗਮਣੀ** ਸ਼ੁਰੂ ਕੀਤਾ।`;
+
+        await Note.create({
+          topic_id: punjabiAuthorsTopic.id,
+          title: 'ਅੰਮ੍ਰਿਤਾ ਪ੍ਰੀਤਮ',
+          original_file_name: 'amrita_pritam_notes.txt',
+          raw_content: amritaContent,
+          html_content: sanitizeHtmlContent(parseTextToHtml(amritaContent)),
+          status: 'active',
+          created_by: admin ? admin.id : null,
+        });
+
+        // Add Shiv Kumar Batalvi sample note
+        const shivContent = `### ਸ਼ਿਵ ਕੁਮਾਰ ਬਟਾਲਵੀ
+
+**ਜਨਮ/ਦੇਹਾਂਤ**
+
+- ਜਨਮ: **23 ਜੁਲਾਈ 1936, ਬੜਾ ਪਿੰਡ ਲੋਹਟੀਆਂ (ਸਿਆਲਕੋਟ)**
+- ਦੇਹਾਂਤ: **7 ਮਈ 1973, ਪਠਾਨਕੋਟ**
+
+**Major/Most Important Work**
+
+- **ਲੂਣਾ** (ਕਾਵਿ-ਨਾਟਕ)
+- **ਪੀੜਾਂ ਦਾ ਪਰਾਗਾ** (ਪਹਿਲਾ ਕਾਵਿ-ਸੰਗ੍ਰਹਿ, 1960)
+- **ਅਲਵਿਦਾ** (1974)
+
+**Awards**
+
+- **ਸਾਹਿਤ ਅਕਾਦਮੀ ਪੁਰਸਕਾਰ**: 1967 ਵਿਚ (ਲੂਣਾ ਲਈ, ਸਭ ਤੋਂ ਘੱਟ ਉਮਰ ਦਾ ਪ੍ਰਾਪਤਕਰਤਾ)
+
+**Important Exam Facts**
+
+- ਸ਼ਿਵ ਕੁਮਾਰ ਬਟਾਲਵੀ ਨੂੰ **ਬਿਰਹਾ ਦਾ ਸੁਲਤਾਨ** ਕਿਹਾ ਜਾਂਦਾ ਹੈ।
+- **ਲੂਣਾ** ਲਈ 31 ਸਾਲ ਦੀ ਉਮਰ ਵਿਚ ਸਾਹਿਤ ਅਕਾਦਮੀ ਪੁਰਸਕਾਰ ਪ੍ਰਾਪਤ ਕੀਤਾ।`;
+
+        await Note.create({
+          topic_id: punjabiAuthorsTopic.id,
+          title: 'ਸ਼ਿਵ ਕੁਮਾਰ ਬਟਾਲਵੀ',
+          original_file_name: 'shiv_kumar_notes.txt',
+          raw_content: shivContent,
+          html_content: sanitizeHtmlContent(parseTextToHtml(shivContent)),
+          status: 'active',
+          created_by: admin ? admin.id : null,
+        });
+
+        console.log('📝 Seeded initial study notes for Punjabi authors');
       }
     }
 

@@ -42,6 +42,15 @@ export const createNote = async (formData) => {
   return response.data;
 };
 
+export const bulkImportNotes = async (formData) => {
+  const response = await api.post('/notes/bulk-import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
 export const updateNote = async (id, formData) => {
   const response = await api.put(`/notes/${id}`, formData, {
     headers: {
@@ -63,6 +72,7 @@ const noteService = {
   getNoteById,
   previewNote,
   createNote,
+  bulkImportNotes,
   updateNote,
   deleteNote,
 };

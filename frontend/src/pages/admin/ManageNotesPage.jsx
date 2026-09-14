@@ -5,13 +5,16 @@ import {
   FileText,
   Trash2,
   Eye,
-  Edit,
   CheckCircle,
   AlertCircle,
   FolderPlus,
   X,
   RefreshCw,
   Power,
+  FileJson,
+  Copy,
+  Check,
+  Layers,
 } from 'lucide-react';
 import noteService from '../../services/noteService';
 import { parseNoteToHtml } from '../../utils/noteParser';
@@ -32,6 +35,12 @@ const ManageNotesPage = () => {
   const [formSuccess, setFormSuccess] = useState('');
   const [formError, setFormError] = useState('');
 
+  // Bulk JSON state
+  const [isBulkJson, setIsBulkJson] = useState(false);
+  const [jsonNotesCount, setJsonNotesCount] = useState(0);
+  const [showJsonSampleModal, setShowJsonSampleModal] = useState(false);
+  const [copiedSample, setCopiedSample] = useState(false);
+
   // New Topic Dynamic Modal / Inline
   const [showAddTopic, setShowAddTopic] = useState(false);
   const [newTopicName, setNewTopicName] = useState('');
@@ -44,7 +53,6 @@ const ManageNotesPage = () => {
 
   // View/Edit Modal State
   const [viewNoteModal, setViewNoteModal] = useState(null);
-  const [editingNote, setEditingNote] = useState(null);
   const [deleteConfirmNote, setDeleteConfirmNote] = useState(null);
 
   useEffect(() => {
@@ -56,7 +64,7 @@ const ManageNotesPage = () => {
     try {
       const [topicsRes, notesRes] = await Promise.all([
         noteService.getTopics(),
-        noteService.getNotes(null, null), // Fetch all notes for admin
+        noteService.getNotes(null, null),
       ]);
 
       if (topicsRes && topicsRes.data && topicsRes.data.topics) {
@@ -73,23 +81,25 @@ const ManageNotesPage = () => {
     }
   };
 
-  // Client-side File Validation
+  // Client-side File Validation for .txt and .json
   const validateFile = (file) => {
     setFileError('');
+    setIsBulkJson(false);
+    setJsonNotesCount(0);
     if (!file) return false;
 
     const fileName = file.name;
     const ext = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
 
     // Check Extension
-    if (ext !== '.txt') {
-      setFileError(`Invalid file format "${ext}". Only .txt files are allowed. PDF, DOCX, XLS, and Images are strictly rejected.`);
+    if (ext !== '.txt' && ext !== '.json') {
+      setFileError(`Invalid file format "${ext}". Only .txt and .json files are allowed. PDF, DOCX, XLS, and Images are strictly rejected.`);
       return false;
     }
 
-    // Check File Size (Max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setFileError('File size exceeds the 5MB limit.');
+    // Check File Size (Max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setFileError('File size exceeds the 10MB limit.');
       return false;
     }
 
@@ -106,18 +116,44 @@ const ManageNotesPage = () => {
     const file = e.target.files[0];
     setFileError('');
     setFormError('');
+    setIsBulkJson(false);
+    setJsonNotesCount(0);
 
     if (file) {
       if (validateFile(file)) {
         setSelectedFile(file);
 
-        // Read file content for live preview
+        const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+
+        // Read file content
         const reader = new FileReader();
         reader.onload = (event) => {
           const rawText = event.target.result;
           setPreviewFileContent(rawText);
-          const parsed = parseNoteToHtml(rawText);
-          setPreviewContent(parsed);
+
+          if (ext === '.json') {
+            try {
+              const parsed = JSON.parse(rawText);
+              const items = Array.isArray(parsed) ? parsed : (parsed.notes || [parsed]);
+              setIsBulkJson(true);
+              setJsonNotesCount(items.length);
+
+              // Build HTML preview for first item
+              if (items.length > 0) {
+                const firstContent = items[0].content || items[0].raw_content || items[0].rawContent || '';
+                setPreviewContent(parseNoteToHtml(firstContent));
+              }
+            } catch (jsonErr) {
+              setFileError(`Invalid JSON syntax in file: ${jsonErr.message}`);
+              setSelectedFile(null);
+              setIsBulkJson(false);
+            }
+          } else {
+            // Standard .txt file
+            setIsBulkJson(false);
+            const parsed = parseNoteToHtml(rawText);
+            setPreviewContent(parsed);
+          }
         };
         reader.readAsText(file, 'UTF-8');
       } else {
@@ -129,17 +165,20 @@ const ManageNotesPage = () => {
 
   const handleOpenPreview = () => {
     setFormError('');
-    if (!selectedTopicId) {
-      setFormError('ਕਿਰਪਾ ਕਰਕੇ ਇੱਕ ਵਿਸ਼ਾ ਚੁਣੋ (Please select a topic).');
-      return;
-    }
-    if (!noteTitle.trim()) {
-      setFormError('ਕਿਰਪਾ ਕਰਕੇ ਨੋਟ ਦਾ ਸਿਰਲੇਖ ਦਰਜ ਕਰੋ (Please enter note title).');
-      return;
-    }
     if (!selectedFile) {
-      setFormError('ਕਿਰਪਾ ਕਰਕੇ ਇੱਕ .txt ਫਾਈਲ ਅੱਪਲੋਡ ਕਰੋ (Please select a .txt file).');
+      setFormError('ਕਿਰਪਾ ਕਰਕੇ ਇੱਕ .txt ਜਾਂ .json ਫਾਈਲ ਅੱਪਲੋਡ ਕਰੋ (Please select a .txt or .json file).');
       return;
+    }
+
+    if (!isBulkJson) {
+      if (!selectedTopicId) {
+        setFormError('ਕਿਰਪਾ ਕਰਕੇ ਇੱਕ ਵਿਸ਼ਾ ਚੁਣੋ (Please select a topic).');
+        return;
+      }
+      if (!noteTitle.trim()) {
+        setFormError('ਕਿਰਪਾ ਕਰਕੇ ਨੋਟ ਦਾ ਸਿਰਲੇਖ ਦਰਜ ਕਰੋ (Please enter note title).');
+        return;
+      }
     }
     setPreviewOpen(true);
   };
@@ -168,8 +207,13 @@ const ManageNotesPage = () => {
   };
 
   const handleSaveNote = async () => {
-    if (!selectedTopicId || !noteTitle.trim() || !selectedFile) {
-      setFormError('All fields and file are required.');
+    if (!selectedFile) {
+      setFormError('Please select a .txt or .json file to upload.');
+      return;
+    }
+
+    if (!isBulkJson && (!selectedTopicId || !noteTitle.trim())) {
+      setFormError('Topic and Title are required for single text file upload.');
       return;
     }
 
@@ -179,28 +223,47 @@ const ManageNotesPage = () => {
 
     try {
       const formData = new FormData();
-      formData.append('topicId', selectedTopicId);
-      formData.append('title', noteTitle.trim());
       formData.append('file', selectedFile);
 
-      const res = await noteService.createNote(formData);
+      if (selectedTopicId) {
+        formData.append('topicId', selectedTopicId);
+      }
+      if (noteTitle.trim()) {
+        formData.append('title', noteTitle.trim());
+      }
 
-      if (res && res.data && res.data.note) {
-        setNotes((prev) => [res.data.note, ...prev]);
-        setFormSuccess('ਨੋਟ ਸਫਲਤਾਪੂਰਵਕ ਅੱਪਲੋਡ ਅਤੇ ਸੇਵ ਹੋ ਗਿਆ! (Note uploaded successfully)');
+      let res;
+      if (isBulkJson) {
+        res = await noteService.bulkImportNotes(formData);
+      } else {
+        res = await noteService.createNote(formData);
+      }
+
+      if (res && res.data) {
+        if (isBulkJson) {
+          const importedCount = res.data.importedCount || (res.data.notes ? res.data.notes.length : 0);
+          setFormSuccess(`✅ ${importedCount} ਨੋਟਸ ਅਤੇ ਵਿਸ਼ੇ ਸਫਲਤਾਪੂਰਵਕ JSON ਤੋਂ ਇੰਪੋਰਟ ਹੋ ਗਏ! (Successfully imported ${importedCount} notes from JSON)`);
+        } else {
+          setFormSuccess('✅ ਨੋਟ ਸਫਲਤਾਪੂਰਵਕ ਅੱਪਲੋਡ ਅਤੇ ਸੇਵ ਹੋ ਗਿਆ! (Note uploaded successfully)');
+        }
+
         setSelectedFile(null);
         setNoteTitle('');
         setSelectedTopicId('');
+        setIsBulkJson(false);
+        setJsonNotesCount(0);
         setPreviewOpen(false);
-        // Reset file input element
-        const fileInput = document.getElementById('txt-file-input');
+
+        const fileInput = document.getElementById('notes-file-input');
         if (fileInput) fileInput.value = null;
 
-        setTimeout(() => setFormSuccess(''), 4000);
+        fetchInitialData();
+
+        setTimeout(() => setFormSuccess(''), 5000);
       }
     } catch (err) {
       console.error('Save Note Error:', err);
-      setFormError(err.response?.data?.message || 'Failed to save note. Please try again.');
+      setFormError(err.response?.data?.message || 'Failed to save notes. Please verify JSON format and try again.');
     } finally {
       setUploading(false);
     }
@@ -231,6 +294,25 @@ const ManageNotesPage = () => {
     }
   };
 
+  const sampleJsonStructure = `[
+  {
+    "topic": "ਭਾਈ ਵੀਰ ਸਿੰਘ",
+    "title": "ਭਾਈ ਵੀਰ ਸਿੰਘ - ਜੀਵਨ ਅਤੇ ਰਚਨਾਵਾਂ",
+    "content": "### ਭਾਈ ਵੀਰ ਸਿੰਘ\\n\\n**ਜਨਮ/ਦੇਹਾਂਤ**\\n\\n- ਜਨਮ: **5 ਦਸੰਬਰ 1872**\\n- ਦੇਹਾਂਤ: **10 ਜੂਨ 1957**\\n\\n**Major/Most Important Work**\\n\\n- **ਰਾਣਾ ਸੂਰਤ ਸਿੰਘ**\\n\\n**Major Works**\\n\\n- **ਸੁੰਦਰੀ**\\n- **ਬਿਜੈ ਸਿੰਘ**\\n\\n**Awards**\\n\\n- **ਪਦਮ ਭੂਸ਼ਣ – 1956**\\n\\n**Important Exam Facts**\\n\\n- ਜਨਮ ਸਾਲ: **1872**"
+  },
+  {
+    "topic": "ਅੰਮ੍ਰਿਤਾ ਪ੍ਰੀਤਮ",
+    "title": "ਅੰਮ੍ਰਿਤਾ ਪ੍ਰੀਤਮ - ਸਾਹਿਤਕ ਪਰਿਚੈ",
+    "content": "### ਅੰਮ੍ਰਿਤਾ ਪ੍ਰੀਤਮ\\n\\n**ਜਨਮ/ਦੇਹਾਂਤ**\\n\\n- ਜਨਮ: **31 ਅਗਸਤ 1919**\\n- ਦੇਹਾਂਤ: **31 ਅਕਤੂਬਰ 2005**\\n\\n**Major/Most Important Work**\\n\\n- **ਅੱਜ ਆਖਾਂ ਵਾਰਿਸ ਸ਼ਾਹ ਨੂੰ**\\n- **ਰਸੀਦੀ ਟਿਕਟ**\\n\\n**Awards**\\n\\n- **ਗਿਆਨਪੀਠ ਪੁਰਸਕਾਰ – 1981**\\n- **ਪਦਮ ਵਿਭੂਸ਼ਣ – 2004**"
+  }
+]`;
+
+  const copySampleJson = () => {
+    navigator.clipboard.writeText(sampleJsonStructure);
+    setCopiedSample(true);
+    setTimeout(() => setCopiedSample(false), 2000);
+  };
+
   const selectedTopicObj = topics.find((t) => t.id === Number(selectedTopicId));
 
   return (
@@ -247,16 +329,25 @@ const ManageNotesPage = () => {
               Manage Notes (ਸਾਹਿਤਕ ਨੋਟਸ ਪ੍ਰਬੰਧਨ)
             </h1>
             <p className="text-slate-300 text-sm mt-1 max-w-2xl">
-              Upload study notes in `.txt` format, validate content, structure into HTML sections, preview, and make notes available for Punjabi candidates.
+              Upload study notes in `.txt` or `.json` bulk formats, automatically generate topics, preview formatted HTML cards, and manage candidate preparation material.
             </p>
           </div>
-          <button
-            onClick={fetchInitialData}
-            className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all cursor-pointer"
-            title="Refresh Data"
-          >
-            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setShowJsonSampleModal(true)}
+              className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
+            >
+              <FileJson className="w-4 h-4" />
+              <span>JSON Format Sample</span>
+            </button>
+            <button
+              onClick={fetchInitialData}
+              className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all cursor-pointer"
+              title="Refresh Data"
+            >
+              <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -265,7 +356,7 @@ const ManageNotesPage = () => {
         <div className="bg-amber-50/80 px-6 py-4 border-b border-amber-200/80 flex items-center justify-between">
           <div className="flex items-center space-x-2 text-amber-900 font-bold font-gurmukhi text-lg">
             <Upload className="w-5 h-5 text-amber-700" />
-            <span>ਨਵਾਂ ਨੋਟ ਅੱਪਲੋਡ ਕਰੋ (Upload New Study Note)</span>
+            <span>ਅੱਪਲੋਡ ਨੋਟਸ (Single .txt or Bulk .json Upload)</span>
           </div>
           <button
             onClick={() => setShowAddTopic(!showAddTopic)}
@@ -324,7 +415,7 @@ const ManageNotesPage = () => {
             {/* 1. Topic Dropdown */}
             <div className="space-y-2">
               <label className="block text-sm font-bold text-slate-800 font-gurmukhi">
-                1. ਵਿਸ਼ਾ (Topic) <span className="text-rose-500">*</span>
+                1. ਵਿਸ਼ਾ (Topic) {isBulkJson ? <span className="text-amber-600 font-normal text-xs">(Optional in Bulk JSON)</span> : <span className="text-rose-500">*</span>}
               </label>
               <select
                 value={selectedTopicId}
@@ -343,34 +434,35 @@ const ManageNotesPage = () => {
             {/* 2. Note Title Input */}
             <div className="space-y-2">
               <label className="block text-sm font-bold text-slate-800 font-gurmukhi">
-                2. ਨੋਟ ਦਾ ਸਿਰਲੇਖ (Note Title) <span className="text-rose-500">*</span>
+                2. ਨੋਟ ਦਾ ਸਿਰਲੇਖ (Note Title) {isBulkJson ? <span className="text-amber-600 font-normal text-xs">(Auto-read from JSON)</span> : <span className="text-rose-500">*</span>}
               </label>
               <input
                 type="text"
                 value={noteTitle}
                 onChange={(e) => setNoteTitle(e.target.value)}
-                placeholder="e.g. ਭਾਈ ਵੀਰ ਸਿੰਘ - ਜੀਵਨ ਅਤੇ ਰਚਨਾਵਾਂ"
-                className="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl shadow-sm text-slate-800 font-medium font-gurmukhi text-base focus:outline-none focus:ring-2 focus:ring-amber-500"
+                disabled={isBulkJson}
+                placeholder={isBulkJson ? "Reading titles from JSON array..." : "e.g. ਭਾਈ ਵੀਰ ਸਿੰਘ - ਜੀਵਨ ਅਤੇ ਰਚਨਾਵਾਂ"}
+                className="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl shadow-sm text-slate-800 font-medium font-gurmukhi text-base focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-100 disabled:text-slate-400"
               />
             </div>
           </div>
 
-          {/* 3. Text File Upload */}
+          {/* 3. File Upload (.txt or .json) */}
           <div className="space-y-2">
             <label className="block text-sm font-bold text-slate-800 font-gurmukhi">
-              3. ਟੈਕਸਟ ਫਾਈਲ ਅੱਪਲੋਡ (Upload `.txt` file) <span className="text-rose-500">*</span>
+              3. ਫਾਈਲ ਅੱਪਲੋਡ (Upload `.txt` or `.json` file) <span className="text-rose-500">*</span>
             </label>
 
             <div className="border-2 border-dashed border-amber-300 bg-amber-50/30 rounded-2xl p-6 text-center hover:bg-amber-50/60 transition-all">
               <input
-                id="txt-file-input"
+                id="notes-file-input"
                 type="file"
-                accept=".txt,text/plain"
+                accept=".txt,.json,text/plain,application/json"
                 onChange={handleFileChange}
                 className="hidden"
               />
               <label
-                htmlFor="txt-file-input"
+                htmlFor="notes-file-input"
                 className="cursor-pointer flex flex-col items-center justify-center space-y-2"
               >
                 <div className="p-3 bg-amber-100 text-amber-800 rounded-full">
@@ -378,18 +470,27 @@ const ManageNotesPage = () => {
                 </div>
                 <div>
                   <span className="text-amber-800 font-bold text-sm hover:underline font-gurmukhi">
-                    ਫਾਈਲ ਚੁਣਨ ਲਈ ਇੱਥੇ ਕਲਿੱਕ ਕਰੋ (Click to select `.txt` file)
+                    ਫਾਈਲ ਚੁਣਨ ਲਈ ਇੱਥੇ ਕਲਿੱਕ ਕਰੋ (Upload single `.txt` or multiple notes `.json`)
                   </span>
                   <p className="text-xs text-slate-500 mt-1">
-                    Strictly `.txt` plain text files only (Max 5MB). PDF, DOCX, XLS & Images rejected.
+                    Accepts `.txt` plain text files & `.json` multi-note arrays (Max 10MB).
                   </p>
                 </div>
               </label>
 
               {selectedFile && (
-                <div className="mt-4 inline-flex items-center space-x-2 px-4 py-2 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-semibold">
-                  <FileText className="w-4 h-4 text-emerald-700" />
-                  <span>{selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)</span>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                  <div className="inline-flex items-center space-x-2 px-4 py-2 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-semibold">
+                    <FileText className="w-4 h-4 text-emerald-700" />
+                    <span>{selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)</span>
+                  </div>
+
+                  {isBulkJson && (
+                    <div className="inline-flex items-center space-x-2 px-4 py-2 bg-purple-100 border border-purple-300 text-purple-900 rounded-xl text-xs font-bold shadow-sm">
+                      <FileJson className="w-4 h-4 text-purple-700" />
+                      <span>📦 Bulk JSON Detected: {jsonNotesCount} Note(s) Included</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -407,7 +508,7 @@ const ManageNotesPage = () => {
             <button
               type="button"
               onClick={handleOpenPreview}
-              disabled={!selectedFile || !selectedTopicId || !noteTitle.trim()}
+              disabled={!selectedFile || (!isBulkJson && (!selectedTopicId || !noteTitle.trim()))}
               className="inline-flex items-center space-x-2 px-5 py-3 rounded-xl border border-amber-600 text-amber-900 font-bold text-sm hover:bg-amber-50 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Eye className="w-4 h-4 text-amber-700" />
@@ -417,11 +518,17 @@ const ManageNotesPage = () => {
             <button
               type="button"
               onClick={handleSaveNote}
-              disabled={uploading || !selectedFile || !selectedTopicId || !noteTitle.trim()}
+              disabled={uploading || !selectedFile || (!isBulkJson && (!selectedTopicId || !noteTitle.trim()))}
               className="inline-flex items-center space-x-2 px-6 py-3 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold text-sm shadow-md transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Upload className="w-4 h-4" />
-              <span className="font-gurmukhi">{uploading ? 'ਸੇਵ ਹੋ ਰਿਹਾ ਹੈ...' : 'Upload & Save Note'}</span>
+              <span className="font-gurmukhi">
+                {uploading
+                  ? 'ਸੇਵ ਹੋ ਰਿਹਾ ਹੈ...'
+                  : isBulkJson
+                  ? `Upload & Save ${jsonNotesCount} Notes`
+                  : 'Upload & Save Note'}
+              </span>
             </button>
           </div>
         </div>
@@ -431,7 +538,7 @@ const ManageNotesPage = () => {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-md overflow-hidden">
         <div className="bg-slate-900 px-6 py-4 text-white flex items-center justify-between">
           <h2 className="text-lg font-bold font-gurmukhi flex items-center space-x-2">
-            <FileText className="w-5 h-5 text-amber-400" />
+            <Layers className="w-5 h-5 text-amber-400" />
             <span>ਮੌਜੂਦਾ ਨੋਟਸ ਸੂਚੀ (Existing Notes List - {notes.length})</span>
           </h2>
         </div>
@@ -506,8 +613,8 @@ const ManageNotesPage = () => {
         isOpen={previewOpen}
         onClose={() => setPreviewOpen(false)}
         onConfirm={handleSaveNote}
-        title={noteTitle}
-        topicName={selectedTopicObj ? selectedTopicObj.name : ''}
+        title={noteTitle || (isBulkJson ? `${jsonNotesCount} Bulk JSON Notes` : 'Untitled')}
+        topicName={selectedTopicObj ? selectedTopicObj.name : 'Multiple Topics'}
         originalFileName={selectedFile ? selectedFile.name : ''}
         htmlContent={previewContent}
         isSaving={uploading}
@@ -527,7 +634,7 @@ const ManageNotesPage = () => {
               </button>
             </div>
             <div className="p-6 overflow-y-auto">
-              <NoteViewer note={viewNoteModal} topicName={viewNoteModal.topic?.name} />
+              <NoteViewer note={viewNoteModal} />
             </div>
           </div>
         </div>
@@ -558,6 +665,52 @@ const ManageNotesPage = () => {
                 className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-bold shadow-md cursor-pointer"
               >
                 ਹਾਂ, ਮਿਟਾਓ (Delete)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sample JSON Structure Modal */}
+      {showJsonSampleModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 space-y-4 border border-slate-200">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div className="flex items-center space-x-2 text-amber-900 font-bold">
+                <FileJson className="w-5 h-5 text-amber-600" />
+                <span>Sample JSON Format for Bulk Notes Upload</span>
+              </div>
+              <button
+                onClick={() => setShowJsonSampleModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Upload an array of note objects in `.json` format. Missing topics will be created automatically by name!
+            </p>
+
+            <div className="relative">
+              <pre className="bg-slate-950 text-amber-300 p-4 rounded-xl text-xs font-mono overflow-x-auto max-h-72 leading-relaxed">
+                {sampleJsonStructure}
+              </pre>
+              <button
+                onClick={copySampleJson}
+                className="absolute top-3 right-3 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-semibold flex items-center space-x-1 cursor-pointer transition-colors"
+              >
+                {copiedSample ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedSample ? 'Copied!' : 'Copy'}</span>
+              </button>
+            </div>
+
+            <div className="pt-2 text-right">
+              <button
+                onClick={() => setShowJsonSampleModal(false)}
+                className="px-5 py-2.5 bg-slate-900 text-white font-bold rounded-xl text-xs hover:bg-slate-800 cursor-pointer"
+              >
+                Close
               </button>
             </div>
           </div>

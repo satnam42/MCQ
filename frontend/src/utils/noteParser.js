@@ -1,6 +1,6 @@
 /**
  * Frontend Note Parser Utility
- * Converts Markdown-like text to formatted HTML for instant preview.
+ * Converts Markdown-like text to structured, card-based HTML for instant preview.
  * Preserves Punjabi Unicode text without transliteration.
  */
 
@@ -21,12 +21,25 @@ function parseInline(text) {
   return escaped;
 }
 
+function isExamFactsSection(sectionTitle) {
+  if (!sectionTitle) return false;
+  const lower = sectionTitle.toLowerCase();
+  return (
+    lower.includes('exam fact') ||
+    lower.includes('ਮਹੱਤਵਪੂਰਨ ਤੱਥ') ||
+    lower.includes('exam tricks') ||
+    lower.includes('ਤੱਥ') ||
+    lower.includes('important fact')
+  );
+}
+
 export function parseNoteToHtml(rawText) {
   if (!rawText || typeof rawText !== 'string') return '';
 
   const lines = rawText.split(/\r?\n/);
   const result = [];
   let inList = false;
+  let inSectionCard = false;
   let isFirstHeading = true;
 
   lines.forEach((lineStr) => {
@@ -52,7 +65,17 @@ export function parseNoteToHtml(rawText) {
         result.push(`<h1 class="notes-main-title">${clean}</h1>`);
         isFirstHeading = false;
       } else {
-        result.push(`<h2 class="notes-section-title">${clean}</h2>`);
+        if (inSectionCard) {
+          result.push('</section>');
+          inSectionCard = false;
+        }
+
+        const isSpecial = isExamFactsSection(clean);
+        const cardClass = isSpecial ? 'notes-exam-facts-card' : 'notes-section-card';
+
+        result.push(`<section class="${cardClass}">`);
+        result.push(`  <h2 class="notes-section-title"><span class="notes-accent-indicator">▌</span> ${clean}</h2>`);
+        inSectionCard = true;
       }
       return;
     }
@@ -70,7 +93,17 @@ export function parseNoteToHtml(rawText) {
         result.push(`<h1 class="notes-main-title">${parsedTitle}</h1>`);
         isFirstHeading = false;
       } else {
-        result.push(`<h2 class="notes-section-title">${parsedTitle}</h2>`);
+        if (inSectionCard) {
+          result.push('</section>');
+          inSectionCard = false;
+        }
+
+        const isSpecial = isExamFactsSection(title);
+        const cardClass = isSpecial ? 'notes-exam-facts-card' : 'notes-section-card';
+
+        result.push(`<section class="${cardClass}">`);
+        result.push(`  <h2 class="notes-section-title"><span class="notes-accent-indicator">▌</span> ${parsedTitle}</h2>`);
+        inSectionCard = true;
       }
       return;
     }
@@ -96,6 +129,10 @@ export function parseNoteToHtml(rawText) {
 
   if (inList) {
     result.push('</ul>');
+  }
+
+  if (inSectionCard) {
+    result.push('</section>');
   }
 
   return result.join('\n');

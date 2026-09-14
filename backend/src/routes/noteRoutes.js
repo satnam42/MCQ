@@ -6,24 +6,16 @@ const noteController = require('../controllers/noteController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { errorResponse } = require('../utils/responseFormatter');
 
-// Configure Multer in-memory storage for uploaded .txt files
+// Configure Multer in-memory storage for uploaded .txt and .json files
 const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   const ext = path.extname(file.originalname).toLowerCase();
   
-  // Extension check
-  if (ext !== '.txt') {
+  // Extension check: accept .txt and .json
+  if (ext !== '.txt' && ext !== '.json') {
     return cb(
-      new Error(`Unsupported file format "${ext}". Only .txt files are allowed. PDF, DOCX, XLS, and Images are rejected.`),
-      false
-    );
-  }
-
-  // Optional MIME type check if present
-  if (file.mimetype && !file.mimetype.includes('text') && file.mimetype !== 'application/octet-stream') {
-    return cb(
-      new Error(`Invalid MIME type "${file.mimetype}". Please upload a valid UTF-8 plain text file (.txt).`),
+      new Error(`Unsupported file format "${ext}". Only .txt and .json files are allowed. PDF, DOCX, XLS, and Images are rejected.`),
       false
     );
   }
@@ -34,7 +26,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 10 * 1024 * 1024, // 10MB limit for bulk files
   },
   fileFilter,
 });
@@ -45,7 +37,7 @@ const handleUpload = (fieldName) => {
     upload.single(fieldName)(req, res, (err) => {
       if (err instanceof multer.MulterError) {
         if (err.code === 'LIMIT_FILE_SIZE') {
-          return errorResponse(res, 'File size exceeds maximum limit of 5MB.', 'FILE_TOO_LARGE', 400);
+          return errorResponse(res, 'File size exceeds maximum limit of 10MB.', 'FILE_TOO_LARGE', 400);
         }
         return errorResponse(res, `Upload error: ${err.message}`, 'UPLOAD_ERROR', 400);
       } else if (err) {
@@ -54,7 +46,7 @@ const handleUpload = (fieldName) => {
 
       // Check empty file buffer if file uploaded
       if (req.file && req.file.buffer.length === 0) {
-        return errorResponse(res, 'Uploaded text file is empty (0 bytes).', 'EMPTY_FILE', 400);
+        return errorResponse(res, 'Uploaded file is empty (0 bytes).', 'EMPTY_FILE', 400);
       }
 
       next();
@@ -68,6 +60,7 @@ router.get('/:id', noteController.getNoteById);
 
 // Admin-only routes
 router.post('/preview', authenticate, authorize(['admin']), handleUpload('file'), noteController.previewNote);
+router.post('/bulk-import', authenticate, authorize(['admin']), handleUpload('file'), noteController.bulkImportNotes);
 router.post('/', authenticate, authorize(['admin']), handleUpload('file'), noteController.createNote);
 router.put('/:id', authenticate, authorize(['admin']), handleUpload('file'), noteController.updateNote);
 router.delete('/:id', authenticate, authorize(['admin']), noteController.deleteNote);

@@ -50,11 +50,13 @@ describe('Notes Management System Backend Tests', () => {
       expect(output).toContain('<h1 class="notes-main-title">ਭਾਈ ਵੀਰ ਸਿੰਘ</h1>');
     });
 
-    test('converts standalone section heading to <h2 class="notes-section-title">', () => {
+    test('converts standalone section heading to study card with <h2 class="notes-section-title">', () => {
       const input = '### ਭਾਈ ਵੀਰ ਸਿੰਘ\n\n**ਜਨਮ/ਦੇਹਾਂਤ**';
       const output = parseTextToHtml(input);
       expect(output).toContain('<h1 class="notes-main-title">ਭਾਈ ਵੀਰ ਸਿੰਘ</h1>');
-      expect(output).toContain('<h2 class="notes-section-title">ਜਨਮ/ਦੇਹਾਂਤ</h2>');
+      expect(output).toContain('<section class="notes-section-card">');
+      expect(output).toContain('notes-section-title');
+      expect(output).toContain('ਜਨਮ/ਦੇਹਾਂਤ');
     });
 
     test('converts bullet points into <ul class="notes-list"><li> list', () => {
@@ -86,7 +88,7 @@ describe('Notes Management System Backend Tests', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
-      expect(res.body.message).toContain('Only .txt files are allowed');
+      expect(res.body.message).toContain('Only .txt and .json files are allowed');
     });
 
     test('Rejects empty file upload (0 bytes)', async () => {
@@ -117,7 +119,8 @@ describe('Notes Management System Backend Tests', () => {
       expect(res.body.data.note).toBeDefined();
       expect(res.body.data.note.title).toBe('ਭਾਈ ਵੀਰ ਸਿੰਘ ਨੋਟਸ');
       expect(res.body.data.note.html_content).toContain('<h1 class="notes-main-title">ਭਾਈ ਵੀਰ ਸਿੰਘ</h1>');
-      expect(res.body.data.note.html_content).toContain('<h2 class="notes-section-title">ਜਨਮ/ਦੇਹਾਂਤ</h2>');
+      expect(res.body.data.note.html_content).toContain('notes-section-title');
+      expect(res.body.data.note.html_content).toContain('ਜਨਮ/ਦੇਹਾਂਤ');
     });
 
     test('Allows Preview parsing without saving to database', async () => {
@@ -130,7 +133,8 @@ describe('Notes Management System Backend Tests', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.data.htmlContent).toContain('<h1 class="notes-main-title">ਸਾਹਿਤਕ ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ</h1>');
+      expect(res.body.data.htmlContent).toContain('notes-main-title');
+      expect(res.body.data.htmlContent).toContain('ਸਾਹਿਤਕ ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ');
     });
 
     test('Candidates can retrieve active notes', async () => {

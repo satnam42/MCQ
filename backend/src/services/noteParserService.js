@@ -1,6 +1,6 @@
 /**
  * Text to HTML Parser Service for Punjabi Study Notes
- * Converts Markdown-like text into structured, safe HTML with classes for headings and star bullet lists.
+ * Converts Markdown-like text into structured, card-based HTML for professional exam study notes.
  */
 
 function parseInlineFormatting(text) {
@@ -22,6 +22,18 @@ function parseInlineFormatting(text) {
   return escaped;
 }
 
+function isExamFactsSection(sectionTitle) {
+  if (!sectionTitle) return false;
+  const lower = sectionTitle.toLowerCase();
+  return (
+    lower.includes('exam fact') ||
+    lower.includes('ਮਹੱਤਵਪੂਰਨ ਤੱਥ') ||
+    lower.includes('exam tricks') ||
+    lower.includes('ਤੱਥ') ||
+    lower.includes('important fact')
+  );
+}
+
 function parseTextToHtml(rawText) {
   if (!rawText || typeof rawText !== 'string') {
     return '';
@@ -30,6 +42,7 @@ function parseTextToHtml(rawText) {
   const lines = rawText.split(/\r?\n/);
   const htmlParts = [];
   let inList = false;
+  let inSectionCard = false;
   let isFirstHeading = true;
 
   for (let i = 0; i < lines.length; i++) {
@@ -43,7 +56,7 @@ function parseTextToHtml(rawText) {
       continue;
     }
 
-    // 1. Check for `### Heading` or `## Heading` or `# Heading`
+    // 1. Check for Main Title `# Heading` or `### Heading`
     if (line.startsWith('#')) {
       if (inList) {
         htmlParts.push('</ul>');
@@ -55,12 +68,22 @@ function parseTextToHtml(rawText) {
         htmlParts.push(`<h1 class="notes-main-title">${cleanHeading}</h1>`);
         isFirstHeading = false;
       } else {
-        htmlParts.push(`<h2 class="notes-section-title">${cleanHeading}</h2>`);
+        if (inSectionCard) {
+          htmlParts.push('</section>');
+          inSectionCard = false;
+        }
+
+        const isSpecial = isExamFactsSection(cleanHeading);
+        const cardClass = isSpecial ? 'notes-exam-facts-card' : 'notes-section-card';
+
+        htmlParts.push(`<section class="${cardClass}">`);
+        htmlParts.push(`  <h2 class="notes-section-title"><span class="notes-accent-indicator">▌</span> ${cleanHeading}</h2>`);
+        inSectionCard = true;
       }
       continue;
     }
 
-    // 2. Check for `**Section Heading**` standalone line
+    // 2. Check for Standalone Section Heading `**Section Heading**`
     if (line.startsWith('**') && line.endsWith('**') && line.length > 4 && !line.substring(2, line.length - 2).includes('**')) {
       if (inList) {
         htmlParts.push('</ul>');
@@ -73,7 +96,17 @@ function parseTextToHtml(rawText) {
         htmlParts.push(`<h1 class="notes-main-title">${escapedSection}</h1>`);
         isFirstHeading = false;
       } else {
-        htmlParts.push(`<h2 class="notes-section-title">${escapedSection}</h2>`);
+        if (inSectionCard) {
+          htmlParts.push('</section>');
+          inSectionCard = false;
+        }
+
+        const isSpecial = isExamFactsSection(sectionName);
+        const cardClass = isSpecial ? 'notes-exam-facts-card' : 'notes-section-card';
+
+        htmlParts.push(`<section class="${cardClass}">`);
+        htmlParts.push(`  <h2 class="notes-section-title"><span class="notes-accent-indicator">▌</span> ${escapedSection}</h2>`);
+        inSectionCard = true;
       }
       continue;
     }
@@ -102,6 +135,10 @@ function parseTextToHtml(rawText) {
 
   if (inList) {
     htmlParts.push('</ul>');
+  }
+
+  if (inSectionCard) {
+    htmlParts.push('</section>');
   }
 
   return htmlParts.join('\n');
