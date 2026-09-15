@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Sparkles, FileText, User, CheckCircle, ChevronRight, BookOpen } from 'lucide-react';
+import { Search, Sparkles, FileText, User, CheckCircle, ChevronRight, ChevronLeft, BookOpen, Layers } from 'lucide-react';
 import noteService from '../../services/noteService';
 import NoteViewer from '../../components/notes/NoteViewer';
 
@@ -11,6 +11,7 @@ const StudyNotesPage = () => {
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [activeNoteId, setActiveNoteId] = useState(null);
   const [authorSearchTerm, setAuthorSearchTerm] = useState('');
+  const [isMobileAuthorListExpanded, setIsMobileAuthorListExpanded] = useState(false);
 
   useEffect(() => {
     initPage();
@@ -79,9 +80,11 @@ const StudyNotesPage = () => {
 
   const handleSelectAuthor = (noteId) => {
     setActiveNoteId(noteId);
-    // Smooth scroll to selected author section with sticky header offset
+    setIsMobileAuthorListExpanded(false);
+
+    // Smooth scroll directly to active note viewer section
     setTimeout(() => {
-      const targetElement = document.getElementById(`author-note-${noteId}`);
+      const targetElement = document.getElementById('active-note-section');
       if (targetElement) {
         targetElement.scrollIntoView({
           behavior: 'smooth',
@@ -93,36 +96,54 @@ const StudyNotesPage = () => {
 
   const selectedTopicObj = topics.find((t) => t.id === selectedTopicId);
 
-  // Filter notes by author search term if entered
+  // Filter notes by author search term
   const filteredNotes = notes.filter((n) =>
     n.title.toLowerCase().includes(authorSearchTerm.toLowerCase())
   );
 
+  // Find currently active note object
+  const activeNoteIndex = filteredNotes.findIndex((n) => n.id === activeNoteId);
+  const activeNote =
+    (activeNoteIndex !== -1 ? filteredNotes[activeNoteIndex] : filteredNotes[0]) || notes[0];
+
+  const handlePrevAuthor = () => {
+    if (activeNoteIndex > 0) {
+      handleSelectAuthor(filteredNotes[activeNoteIndex - 1].id);
+    }
+  };
+
+  const handleNextAuthor = () => {
+    if (activeNoteIndex < filteredNotes.length - 1) {
+      handleSelectAuthor(filteredNotes[activeNoteIndex + 1].id);
+    }
+  };
+
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 overflow-x-hidden">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-amber-700 via-amber-800 to-orange-800 text-white rounded-3xl p-6 sm:p-10 shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-amber-700 via-amber-800 to-orange-800 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
         <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 space-y-3 max-w-3xl">
-          <div className="inline-flex items-center space-x-2 bg-amber-900/60 backdrop-blur-md px-3.5 py-1.5 rounded-full text-amber-200 text-xs font-bold border border-amber-500/30 font-gurmukhi">
+        <div className="relative z-10 space-y-2 max-w-3xl">
+          <div className="inline-flex items-center space-x-2 bg-amber-900/60 backdrop-blur-md px-3.5 py-1 rounded-full text-amber-200 text-xs font-bold border border-amber-500/30 font-gurmukhi">
             <Sparkles className="w-4 h-4 text-amber-300" />
             <span>ਪੰਜਾਬੀ ਲੈਕਚਰਾਰ ਕੈਡਰ ਤਿਆਰੀ (Study Notes)</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black font-gurmukhi tracking-tight leading-tight">
+          <h1 className="text-2xl sm:text-4xl font-black font-gurmukhi tracking-tight leading-tight">
             ਪੰਜਾਬੀ ਸਾਹਿਤ ਅਧਿਐਨ ਨੋਟਸ (Punjabi Study Material)
           </h1>
-          <p className="text-amber-100 text-base sm:text-lg font-gurmukhi leading-relaxed opacity-95">
+          <p className="text-amber-100 text-sm sm:text-base font-gurmukhi leading-relaxed opacity-95">
             ਪੰਜਾਬੀ ਸਾਹਿਤਕਾਰਾਂ ਦੇ ਪ੍ਰਮਾਣਿਕ ਨੋਟਸ ਪੜ੍ਹੋ ਅਤੇ PDF ਡਾਊਨਲੋਡ ਕਰੋ। (Browse structured study notes by author and download text-based PDFs for offline exam revision).
           </p>
         </div>
       </div>
 
-      {/* Responsive Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column: Vertical Author Selector (Sticky Sidebar on Desktop) */}
-        <div className="lg:col-span-4 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4 lg:sticky lg:top-24 w-full max-w-full">
+      {/* Main Responsive Layout: 2-Column Desktop, Stacked Mobile */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        {/* Left Column: Author Selector Panel */}
+        <div className="lg:col-span-4 bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm space-y-4 lg:sticky lg:top-24 w-full">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h2 className="text-lg font-extrabold text-slate-900 font-gurmukhi flex items-center space-x-2">
+            <h2 className="text-base sm:text-lg font-extrabold text-slate-900 font-gurmukhi flex items-center space-x-2">
               <User className="w-5 h-5 text-amber-600" />
               <span>ਲੇਖਕ ਚੁਣੋ (Select Author)</span>
             </h2>
@@ -131,7 +152,7 @@ const StudyNotesPage = () => {
             </span>
           </div>
 
-          {/* Author Search Bar (Shown if >3 authors) */}
+          {/* Search Bar (Shown if > 3 authors) */}
           {notes.length > 3 && (
             <div className="relative w-full">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
@@ -145,9 +166,27 @@ const StudyNotesPage = () => {
             </div>
           )}
 
-          {/* Vertical Author Cards List */}
+          {/* Active Author Indicator Badge on Mobile */}
+          {activeNote && (
+            <div className="lg:hidden flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl p-3">
+              <div className="flex items-center space-x-2 truncate">
+                <span className="text-amber-600 font-bold">★</span>
+                <span className="text-xs sm:text-sm font-bold text-amber-950 font-gurmukhi truncate">
+                  ਚੁਣਿਆ ਲੇਖਕ: {activeNote.title}
+                </span>
+              </div>
+              <button
+                onClick={() => setIsMobileAuthorListExpanded(!isMobileAuthorListExpanded)}
+                className="text-xs font-bold text-amber-700 bg-white px-2.5 py-1 rounded-lg border border-amber-300 hover:bg-amber-100 shrink-0 font-gurmukhi"
+              >
+                {isMobileAuthorListExpanded ? 'ਛੁਪਾਓ (Hide)' : 'ਬਦਲੋ (Change)'}
+              </button>
+            </div>
+          )}
+
+          {/* Author Cards List */}
           {loadingNotes ? (
-            <div className="py-8 text-center text-slate-400 font-medium animate-pulse font-gurmukhi">
+            <div className="py-6 text-center text-slate-400 font-medium animate-pulse font-gurmukhi text-sm">
               ਲੇਖਕ ਨੋਟਸ ਲੋਡ ਹੋ ਰਹੇ ਹਨ...
             </div>
           ) : filteredNotes.length === 0 ? (
@@ -155,29 +194,33 @@ const StudyNotesPage = () => {
               ਕੋਈ ਲੇਖਕ ਨਹੀਂ ਮਿਲਿਆ (No author matching search)
             </div>
           ) : (
-            <div className="space-y-2.5 max-h-[600px] overflow-y-auto pr-1">
+            <div
+              className={`space-y-2 max-h-[260px] sm:max-h-[320px] lg:max-h-[580px] overflow-y-auto pr-1 ${
+                isMobileAuthorListExpanded ? 'block' : 'hidden lg:block'
+              }`}
+            >
               {filteredNotes.map((note) => {
-                const isSelected = activeNoteId === note.id;
+                const isSelected = activeNote?.id === note.id;
                 return (
                   <button
                     key={note.id}
                     onClick={() => handleSelectAuthor(note.id)}
-                    className={`w-full text-left p-3.5 sm:p-4 rounded-xl font-gurmukhi transition-all duration-200 flex items-center justify-between cursor-pointer min-h-[48px] ${
+                    className={`w-full text-left p-3 sm:p-3.5 rounded-xl font-gurmukhi transition-all duration-200 flex items-center justify-between cursor-pointer min-h-[44px] ${
                       isSelected
                         ? 'bg-amber-600 text-white font-extrabold shadow-md ring-2 ring-amber-500/20 border border-amber-600'
                         : 'bg-white text-slate-800 font-bold hover:bg-amber-50/80 border border-slate-200 hover:border-amber-300'
                     }`}
                   >
                     <div className="flex items-center space-x-3 min-w-0 pr-2">
-                      <span className={`text-base flex-shrink-0 ${isSelected ? 'text-amber-200' : 'text-amber-500'}`}>
+                      <span className={`text-sm flex-shrink-0 ${isSelected ? 'text-amber-200' : 'text-amber-500'}`}>
                         ★
                       </span>
-                      <span className="text-base tracking-tight leading-snug break-words">
+                      <span className="text-sm tracking-tight leading-snug break-words">
                         {note.title}
                       </span>
                     </div>
                     {isSelected ? (
-                      <CheckCircle className="w-5 h-5 text-amber-200 flex-shrink-0 ml-1" />
+                      <CheckCircle className="w-4 h-4 text-amber-200 flex-shrink-0 ml-1" />
                     ) : (
                       <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0 ml-1" />
                     )}
@@ -188,15 +231,15 @@ const StudyNotesPage = () => {
           )}
         </div>
 
-        {/* Right Column: Author Study Notes List */}
-        <div className="lg:col-span-8 space-y-8 w-full max-w-full">
+        {/* Right Column: Prominently Displayed Active Author Study Note */}
+        <div id="active-note-section" className="lg:col-span-8 space-y-6 w-full scroll-mt-24">
           {loadingNotes ? (
-            <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center space-y-3 shadow-sm">
+            <div className="bg-white p-10 rounded-2xl border border-slate-200 text-center space-y-3 shadow-sm">
               <div className="w-10 h-10 border-4 border-amber-600 border-t-transparent rounded-full animate-spin mx-auto" />
               <p className="text-slate-600 font-semibold font-gurmukhi">ਨੋਟਸ ਲੋਡ ਹੋ ਰਹੇ ਹਨ... (Fetching study notes...)</p>
             </div>
-          ) : notes.length === 0 ? (
-            <div className="bg-white p-12 rounded-2xl border border-dashed border-slate-300 text-center space-y-3 shadow-sm">
+          ) : !activeNote ? (
+            <div className="bg-white p-10 rounded-2xl border border-dashed border-slate-300 text-center space-y-3 shadow-sm">
               <FileText className="w-12 h-12 text-slate-300 mx-auto" />
               <h3 className="text-lg font-bold text-slate-800 font-gurmukhi">
                 ਹਾਲੇ ਕੋਈ ਲੇਖਕ ਨੋਟਸ ਉਪਲਬਧ ਨਹੀਂ ਹਨ
@@ -206,20 +249,40 @@ const StudyNotesPage = () => {
               </p>
             </div>
           ) : (
-            <div className="space-y-10">
-              {notes.map((note) => (
-                <div
-                  key={note.id}
-                  id={`author-note-${note.id}`}
-                  className="scroll-mt-24 scroll-mt-header transition-all duration-300"
-                >
-                  <NoteViewer
-                    note={note}
-                    topicName={selectedTopicObj ? selectedTopicObj.name : 'Punjabi authors'}
-                    showPdfDownload={true}
-                  />
+            <div className="space-y-6">
+              {/* Main Active Note Card View */}
+              <NoteViewer
+                note={activeNote}
+                topicName={selectedTopicObj ? selectedTopicObj.name : 'Punjabi authors'}
+                showPdfDownload={true}
+              />
+
+              {/* Author Navigation Bar (Previous / Next Author) */}
+              {filteredNotes.length > 1 && (
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between font-gurmukhi gap-2">
+                  <button
+                    onClick={handlePrevAuthor}
+                    disabled={activeNoteIndex <= 0}
+                    className="px-3.5 py-2 bg-slate-100 hover:bg-amber-50 text-slate-700 font-bold rounded-xl text-xs sm:text-sm disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center space-x-1 border border-slate-200"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>ਪਿਛਲਾ ਲੇਖਕ (Previous)</span>
+                  </button>
+
+                  <span className="text-xs font-bold text-slate-500 hidden sm:inline">
+                    {activeNoteIndex + 1} / {filteredNotes.length} Authors
+                  </span>
+
+                  <button
+                    onClick={handleNextAuthor}
+                    disabled={activeNoteIndex >= filteredNotes.length - 1}
+                    className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs sm:text-sm disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center space-x-1 shadow-sm"
+                  >
+                    <span>ਅਗਲਾ ਲੇਖਕ (Next)</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>

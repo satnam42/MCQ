@@ -199,6 +199,16 @@ const Navbar = () => {
                 Re-attempt Mistakes
               </Link>
               <Link
+                to="/study-notes"
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                  isActive('/study-notes') ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 font-gurmukhi' : 'text-amber-300 hover:bg-slate-800 font-gurmukhi'
+                }`}
+              >
+                <BookOpen className="w-5 h-5 text-amber-400 shrink-0" />
+                <span>ਸਾਹਿਤ ਨੋਟਸ (Study Notes)</span>
+              </Link>
+              <Link
                 to="/topic-practice"
                 onClick={() => setMobileOpen(false)}
                 className="block px-3 py-2 rounded-md text-base font-medium text-slate-200 hover:bg-slate-800"
@@ -220,13 +230,22 @@ const Navbar = () => {
                 Test History
               </Link>
               {isAdmin && (
-                <Link
-                  to="/admin"
-                  onClick={() => setMobileOpen(false)}
-                  className="block px-3 py-2 rounded-md text-base font-medium text-purple-300 bg-purple-900/30"
-                >
-                  Admin Portal
-                </Link>
+                <>
+                  <Link
+                    to="/admin/notes"
+                    onClick={() => setMobileOpen(false)}
+                    className="block px-3 py-2 rounded-md text-base font-medium text-amber-300 bg-amber-900/40 border border-amber-700/50"
+                  >
+                    Manage Notes (Admin)
+                  </Link>
+                  <Link
+                    to="/admin"
+                    onClick={() => setMobileOpen(false)}
+                    className="block px-3 py-2 rounded-md text-base font-medium text-purple-300 bg-purple-900/30"
+                  >
+                    Admin Portal
+                  </Link>
+                </>
               )}
               <button
                 onClick={() => {
