@@ -69,6 +69,16 @@ const Navbar = () => {
                 </Link>
 
                 <Link
+                  to="/study-notes"
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2 ${
+                    isActive('/study-notes') ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'text-amber-300 hover:bg-slate-800 hover:text-white'
+                  }`}
+                >
+                  <BookOpen className="w-4 h-4 text-amber-400" />
+                  <span className="font-gurmukhi">ਸਾਹਿਤ ਨੋਟਸ (Notes)</span>
+                </Link>
+
+                <Link
                   to="/topic-practice"
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2 ${
                     isActive('/topic-practice') ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
@@ -99,13 +109,14 @@ const Navbar = () => {
 
                 {isAdmin && (
                   <Link
-                    to="/admin"
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2 bg-purple-900/40 text-purple-300 border border-purple-700/50 hover:bg-purple-800/50`}
+                    to="/admin/notes"
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2 bg-amber-900/40 text-amber-300 border border-amber-700/50 hover:bg-amber-800/50`}
                   >
-                    <ShieldAlert className="w-4 h-4 text-purple-400" />
-                    <span>Admin Portal</span>
+                    <ShieldAlert className="w-4 h-4 text-amber-400" />
+                    <span>Manage Notes</span>
                   </Link>
                 )}
+
               </>
             ) : null}
           </div>

@@ -189,8 +189,23 @@ const CandidateDashboard = () => {
           Preparation Modes
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           
+          <Link
+            to="/study-notes"
+            className="bg-white p-6 rounded-3xl border border-amber-300 shadow-sm hover:shadow-md hover:border-amber-500 transition-all group"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <BookOpen className="w-6 h-6" />
+            </div>
+            <h4 className="text-lg font-bold text-slate-900 mb-1 font-gurmukhi">
+              ਸਾਹਿਤ ਨੋਟਸ (Study Notes)
+            </h4>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Structured HTML Punjabi Literature notes by topic. Download text-based Gurmukhi PDFs for offline reading.
+            </p>
+          </Link>
+
           <Link
             to="/topic-practice"
             className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md hover:border-amber-400 transition-all group"
@@ -205,6 +220,7 @@ const CandidateDashboard = () => {
               Practice questions categorized by Punjabi Literature, Grammar, Sufi, Gurmat, and Qissa Literature.
             </p>
           </Link>
+
 
           <Link
             to="/progress"
