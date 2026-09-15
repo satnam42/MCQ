@@ -8,6 +8,7 @@ const DailyQuizQuestion = require('./DailyQuizQuestion');
 const TestAttempt = require('./TestAttempt');
 const TestAnswer = require('./TestAnswer');
 const Note = require('./Note');
+const UserAnsweredQuestion = require('./UserAnsweredQuestion');
 
 // Topic & Subtopic
 Topic.hasMany(Subtopic, { foreignKey: 'topic_id', as: 'subtopics', onDelete: 'CASCADE' });
@@ -28,6 +29,18 @@ Note.belongsTo(Topic, { foreignKey: 'topic_id', as: 'topic' });
 // User & Note
 User.hasMany(Note, { foreignKey: 'created_by', as: 'notes', onDelete: 'SET NULL' });
 Note.belongsTo(User, { foreignKey: 'created_by', as: 'author' });
+
+// User & UserAnsweredQuestion
+User.hasMany(UserAnsweredQuestion, { foreignKey: 'user_id', as: 'userAnsweredQuestions', onDelete: 'CASCADE' });
+UserAnsweredQuestion.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+// Question & UserAnsweredQuestion
+Question.hasMany(UserAnsweredQuestion, { foreignKey: 'question_id', as: 'userAnsweredQuestions', onDelete: 'CASCADE' });
+UserAnsweredQuestion.belongsTo(Question, { foreignKey: 'question_id', as: 'question' });
+
+// Topic & UserAnsweredQuestion
+Topic.hasMany(UserAnsweredQuestion, { foreignKey: 'topic_id', as: 'userAnsweredQuestions', onDelete: 'SET NULL' });
+UserAnsweredQuestion.belongsTo(Topic, { foreignKey: 'topic_id', as: 'topic' });
 
 // DailyQuiz & Question (through DailyQuizQuestion)
 DailyQuiz.belongsToMany(Question, {
@@ -80,5 +93,6 @@ module.exports = {
   TestAttempt,
   TestAnswer,
   Note,
+  UserAnsweredQuestion,
 };
 

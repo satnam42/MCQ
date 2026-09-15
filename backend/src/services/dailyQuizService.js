@@ -1,11 +1,12 @@
-const { sequelize, DailyQuiz, DailyQuizQuestion, Question, Topic, Subtopic } = require('../models');
+const { sequelize, DailyQuiz, DailyQuizQuestion, Question, Topic, Subtopic, UserAnsweredQuestion } = require('../models');
 const { Op } = require('sequelize');
 
 class DailyQuizService {
   /**
    * Retrieves existing Daily Quiz for given date (YYYY-MM-DD) or generates a new persistent one.
+   * If userId is passed, excludes questions previously answered by userId across all days.
    */
-  async getOrGenerateDailyQuiz(dateString, limit = 50) {
+  async getOrGenerateDailyQuiz(dateString, limit = 50, userId = null) {
     const targetDate = dateString || new Date().toISOString().split('T')[0];
     const reqLimit = parseInt(limit, 10) || 50;
 
@@ -35,48 +36,61 @@ class DailyQuizService {
       quiz = await this.generateDailyQuiz(targetDate);
     }
 
-    const formatted = this.formatQuizResponse(quiz);
-    if (formatted.questions.length >= reqLimit) {
-      formatted.questions = formatted.questions.slice(0, reqLimit);
-      formatted.totalQuestions = formatted.questions.length;
-      return formatted;
+    let formatted = this.formatQuizResponse(quiz);
+
+    // If userId provided, filter out questions answered by this user across all days
+    if (userId) {
+      const userAnswers = await UserAnsweredQuestion.findAll({
+        where: { user_id: userId },
+        attributes: ['question_id'],
+      });
+      const answeredIds = new Set(userAnswers.map((a) => a.question_id));
+
+      if (answeredIds.size > 0) {
+        const unansweredQuizQuestions = formatted.questions.filter((q) => !answeredIds.has(q.id));
+
+        if (unansweredQuizQuestions.length < reqLimit) {
+          const excludedIds = [...Array.from(answeredIds), ...unansweredQuizQuestions.map((q) => q.id)];
+          const extraUnanswered = await Question.findAll({
+            where: {
+              is_active: true,
+              id: { [Op.notIn]: excludedIds.length ? excludedIds : [0] },
+            },
+            include: [
+              { model: Topic, as: 'topic', attributes: ['id', 'name'] },
+              { model: Subtopic, as: 'subtopic', attributes: ['id', 'name'] },
+            ],
+            limit: reqLimit - unansweredQuizQuestions.length,
+            order: sequelize.random(),
+          });
+
+          const formattedExtra = extraUnanswered.map((q, index) => ({
+            order: unansweredQuizQuestions.length + index + 1,
+            id: q.id,
+            question: q.question,
+            options: {
+              A: q.option_a,
+              B: q.option_b,
+              C: q.option_c,
+              D: q.option_d,
+            },
+            topicId: q.topic_id,
+            topicName: q.topic ? q.topic.name : '',
+            subtopicName: q.subtopic ? q.subtopic.name : '',
+            difficulty: q.difficulty,
+            source: q.source,
+          }));
+
+          formatted.questions = [...unansweredQuizQuestions, ...formattedExtra];
+        } else {
+          formatted.questions = unansweredQuizQuestions;
+        }
+      }
     }
 
-    // If 100 or 150 questions requested for Today's Test, append additional questions
-    const needed = reqLimit - formatted.questions.length;
-    const existingIds = formatted.questions.map((q) => q.id);
-
-    const extraQuestions = await Question.findAll({
-      where: {
-        is_active: true,
-        id: { [Op.notIn]: existingIds.length ? existingIds : [0] },
-      },
-      include: [
-        { model: Topic, as: 'topic', attributes: ['id', 'name'] },
-        { model: Subtopic, as: 'subtopic', attributes: ['id', 'name'] },
-      ],
-      limit: needed,
-      order: sequelize.random(),
-    });
-
-    const formattedExtra = extraQuestions.map((q, index) => ({
-      order: formatted.questions.length + index + 1,
-      id: q.id,
-      question: q.question,
-      options: {
-        A: q.option_a,
-        B: q.option_b,
-        C: q.option_c,
-        D: q.option_d,
-      },
-      topicId: q.topic_id,
-      topicName: q.topic ? q.topic.name : '',
-      subtopicName: q.subtopic ? q.subtopic.name : '',
-      difficulty: q.difficulty,
-      source: q.source,
-    }));
-
-    formatted.questions = [...formatted.questions, ...formattedExtra];
+    if (formatted.questions.length >= reqLimit) {
+      formatted.questions = formatted.questions.slice(0, reqLimit);
+    }
     formatted.totalQuestions = formatted.questions.length;
     return formatted;
   }

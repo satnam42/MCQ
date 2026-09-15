@@ -1,4 +1,5 @@
-const { sequelize, TestAttempt, TestAnswer, Question, Topic, DailyQuiz } = require('../models');
+const { sequelize, TestAttempt, TestAnswer, Question, Topic, DailyQuiz, UserAnsweredQuestion } = require('../models');
+const { Op } = require('sequelize');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
 
 const startTest = async (req, res, next) => {
@@ -96,6 +97,23 @@ const submitTest = async (req, res, next) => {
     });
 
     await TestAnswer.bulkCreate(testAnswersPayload, { transaction });
+
+    // Record user answered questions permanently with UNIQUE(user_id, question_id) constraint
+    const answeredPayload = answers
+      .filter((ans) => ans.questionId)
+      .map((ans) => ({
+        user_id: userId,
+        question_id: ans.questionId,
+        topic_id: attempt.topic_id || null,
+        answered_at: new Date(),
+      }));
+
+    if (answeredPayload.length > 0) {
+      await UserAnsweredQuestion.bulkCreate(answeredPayload, {
+        ignoreDuplicates: true,
+        transaction,
+      });
+    }
 
     const totalQuestions = answers.length || attempt.total_questions;
     const score = correctCount;
@@ -396,10 +414,66 @@ const getIncorrectQuestions = async (req, res, next) => {
   }
 };
 
+/**
+ * Reset Question Bank for User (Allowed ONLY when question bank is exhausted)
+ */
+const resetQuestionBank = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { topicId } = req.body;
+
+    const baseWhere = { is_active: true };
+    if (topicId) baseWhere.topic_id = topicId;
+
+    const totalPoolCount = await Question.count({ where: baseWhere });
+
+    // Fetch answered questions for user
+    const userAnswers = await UserAnsweredQuestion.findAll({
+      where: { user_id: userId },
+      attributes: ['question_id'],
+    });
+    const answeredIds = new Set(userAnswers.map((a) => a.question_id));
+
+    // Calculate unanswered count
+    const unansweredWhere = {
+      ...baseWhere,
+      id: { [Op.notIn]: Array.from(answeredIds).length ? Array.from(answeredIds) : [0] },
+    };
+    const unansweredCount = await Question.count({ where: unansweredWhere });
+
+    // Allow reset only if unansweredCount is 0 or force Reset requested when exhausted
+    if (unansweredCount > 0 && totalPoolCount > 0) {
+      return errorResponse(
+        res,
+        `Cannot reset question bank until all questions in the topic are answered. (${unansweredCount} unanswered questions remaining)`,
+        'POOL_NOT_EXHAUSTED',
+        400
+      );
+    }
+
+    // Delete answered question records for this user (and topic if specified)
+    const deleteWhere = { user_id: userId };
+    if (topicId) {
+      deleteWhere.topic_id = topicId;
+    }
+
+    const deletedCount = await UserAnsweredQuestion.destroy({ where: deleteWhere });
+
+    return successResponse(
+      res,
+      { resetCount: deletedCount, topicId: topicId || 'all' },
+      'Question bank reset successfully. You can now practice these questions again.'
+    );
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   startTest,
   submitTest,
   getHistory,
   getResultDetail,
   getIncorrectQuestions,
+  resetQuestionBank,
 };
