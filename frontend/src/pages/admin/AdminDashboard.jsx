@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../../services/api';
-import { ShieldAlert, BookOpen, Upload, Sparkles, CheckCircle, CheckSquare, FileText } from 'lucide-react';
+import api, { getSystemSettings, updateNewContentDurationDays } from '../../services/api';
+import { ShieldAlert, BookOpen, Upload, Sparkles, CheckCircle, CheckSquare, FileText, Clock, Save } from 'lucide-react';
 
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [newContentDays, setNewContentDays] = useState(7);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [settingsMessage, setSettingsMessage] = useState('');
 
   useEffect(() => {
     const fetchAdminStats = async () => {
@@ -22,8 +25,37 @@ const AdminDashboard = () => {
       }
     };
 
+    const fetchSettings = async () => {
+      try {
+        const data = await getSystemSettings();
+        if (data.success && data.data?.settings?.new_content_duration_days) {
+          setNewContentDays(parseInt(data.data.settings.new_content_duration_days, 10));
+        }
+      } catch (err) {
+        console.error('Failed to fetch system settings:', err);
+      }
+    };
+
     fetchAdminStats();
+    fetchSettings();
   }, []);
+
+  const handleSaveDurationSettings = async () => {
+    setIsSavingSettings(true);
+    setSettingsMessage('');
+    try {
+      const res = await updateNewContentDurationDays(newContentDays);
+      if (res.success) {
+        setSettingsMessage('New Content duration updated successfully!');
+        setTimeout(() => setSettingsMessage(''), 4000);
+      }
+    } catch (err) {
+      console.error('Error saving duration setting:', err);
+      setSettingsMessage('Failed to update setting.');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -93,6 +125,49 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* System Settings: New Content Duration */}
+      <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <div className="flex items-center space-x-2 text-amber-600 font-bold text-sm">
+            <Clock className="w-4 h-4" />
+            <span>Dynamic "NEW" Tag System Setting</span>
+          </div>
+          <p className="text-xs text-slate-500">
+            Configure how long newly created topics & questions display the dynamic <span className="font-bold text-slate-900">[NEW]</span> badge.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="text-xs font-bold text-slate-700">Duration (Days):</label>
+          <select
+            value={newContentDays}
+            onChange={(e) => setNewContentDays(parseInt(e.target.value, 10))}
+            className="px-3.5 py-2 rounded-xl border border-slate-300 text-sm font-bold bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+          >
+            <option value={1}>1 Day</option>
+            <option value={3}>3 Days</option>
+            <option value={7}>7 Days (Default)</option>
+            <option value={14}>14 Days</option>
+            <option value={30}>30 Days</option>
+          </select>
+
+          <button
+            onClick={handleSaveDurationSettings}
+            disabled={isSavingSettings}
+            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs shadow transition-colors flex items-center space-x-1.5 disabled:opacity-50"
+          >
+            <Save className="w-3.5 h-3.5" />
+            <span>{isSavingSettings ? 'Saving...' : 'Save Setting'}</span>
+          </button>
+
+          {settingsMessage && (
+            <span className="text-xs font-bold text-emerald-600 animate-in fade-in">
+              {settingsMessage}
+            </span>
+          )}
+        </div>
+      </div>
 
       {/* Admin Action Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

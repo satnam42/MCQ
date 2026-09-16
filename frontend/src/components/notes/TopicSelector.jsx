@@ -100,17 +100,29 @@ const TopicSelector = ({ topics = [], selectedTopicId, onSelectTopic, viewMode =
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className={`p-2.5 rounded-lg ${isSelected ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                    <div className={`p-2.5 rounded-lg shrink-0 ${isSelected ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600'}`}>
                       <BookOpen className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-900 font-gurmukhi text-base leading-tight">
-                        {topic.name}
-                      </h3>
+                      <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                        <h3 className="font-bold text-slate-900 font-gurmukhi text-base leading-tight">
+                          {topic.name}
+                        </h3>
+                        {topic.isNew && (
+                          <span className="bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-black px-2 py-0.5 text-[10px] uppercase rounded-full tracking-wider shrink-0">
+                            NEW
+                          </span>
+                        )}
+                        {!topic.isNew && topic.isUnseen && (
+                          <span className="bg-blue-50 text-blue-700 border border-blue-200 font-bold px-1.5 py-0.5 text-[10px] rounded-full shrink-0">
+                            UNSEEN
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-500 mt-0.5">Study Notes</p>
                     </div>
                   </div>
-                  {isSelected && <CheckCircle2 className="w-5 h-5 text-amber-600" />}
+                  {isSelected && <CheckCircle2 className="w-5 h-5 text-amber-600 shrink-0" />}
                 </div>
               </div>
             );

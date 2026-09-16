@@ -2,6 +2,7 @@ const { Question, Topic, Subtopic, DailyQuiz, User, sequelize } = require('../mo
 const duplicateDetectorService = require('../services/duplicateDetectorService');
 const questionImportService = require('../services/questionImportService');
 const questionGeneratorService = require('../services/questionGeneratorService');
+const contentStatusService = require('../services/contentStatusService');
 const { normalizePunjabiText } = require('../utils/normalizer');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
 const { Op } = require('sequelize');
@@ -11,8 +12,9 @@ const listQuestions = async (req, res, next) => {
     const page = parseInt(req.query.page || 1, 10);
     const limit = parseInt(req.query.limit || 20, 10);
     const offset = (page - 1) * limit;
+    const userId = req.user ? req.user.id : null;
 
-    const { search, topicId, difficulty, isVerified, isActive } = req.query;
+    const { search, topicId, difficulty, isVerified, isActive, status } = req.query;
 
     const where = {};
 
@@ -32,16 +34,26 @@ const listQuestions = async (req, res, next) => {
     if (isVerified !== undefined) where.is_verified = isVerified === 'true';
     if (isActive !== undefined) where.is_active = isActive === 'true';
 
-    const { rows: questions, count } = await Question.findAndCountAll({
+    // Fetch questions
+    const { rows: rawQuestions, count } = await Question.findAndCountAll({
       where,
       include: [
         { model: Topic, as: 'topic', attributes: ['id', 'name'] },
         { model: Subtopic, as: 'subtopic', attributes: ['id', 'name'] },
       ],
       order: [['id', 'DESC']],
-      limit,
-      offset,
+      limit: status && status !== 'all' ? 500 : limit, // Expand limit if filtering by dynamic status before pagination
+      offset: status && status !== 'all' ? 0 : offset,
     });
+
+    // Enrich with dynamic isNew, isSeen, newUntil
+    const enrichedQuestions = await contentStatusService.enrichContentList(rawQuestions, 'question', userId);
+    const filteredQuestions = contentStatusService.filterByStatus(enrichedQuestions, status);
+
+    const finalQuestions = status && status !== 'all'
+      ? filteredQuestions.slice(offset, offset + limit)
+      : filteredQuestions;
+    const finalTotal = status && status !== 'all' ? filteredQuestions.length : count;
 
     // Statistics counts for Admin Dashboard
     const totalQuestions = await Question.count();
@@ -65,12 +77,12 @@ const listQuestions = async (req, res, next) => {
         totalCandidates,
       },
       pagination: {
-        total: count,
+        total: finalTotal,
         page,
         limit,
-        totalPages: Math.ceil(count / limit),
+        totalPages: Math.ceil(finalTotal / limit) || 1,
       },
-      questions,
+      questions: finalQuestions,
     });
   } catch (err) {
     next(err);

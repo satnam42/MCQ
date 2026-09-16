@@ -32,4 +32,26 @@ api.interceptors.response.use(
   }
 );
 
+// Content View Tracking
+export const trackContentView = async (contentType, contentId) => {
+  if (!contentId) return;
+  try {
+    await api.post('/content/view', { contentType, contentId });
+  } catch (err) {
+    // Fail silently in background to avoid disrupting user workflow
+    console.debug('Failed to track content view:', err);
+  }
+};
+
+// System Settings APIs
+export const getSystemSettings = async () => {
+  const res = await api.get('/settings');
+  return res.data;
+};
+
+export const updateNewContentDurationDays = async (days) => {
+  const res = await api.put('/settings', { new_content_duration_days: days });
+  return res.data;
+};
+
 export default api;

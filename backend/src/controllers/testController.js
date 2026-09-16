@@ -1,5 +1,6 @@
 const { sequelize, TestAttempt, TestAnswer, Question, Topic, DailyQuiz, UserAnsweredQuestion } = require('../models');
 const { Op } = require('sequelize');
+const contentStatusService = require('../services/contentStatusService');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
 
 const startTest = async (req, res, next) => {
@@ -227,12 +228,21 @@ const getResultDetail = async (req, res, next) => {
       return errorResponse(res, 'Forbidden access to result', 'FORBIDDEN', 403);
     }
 
+    // Extract raw question objects to calculate dynamic status
+    const rawQuestions = (attempt.answers || []).map((ta) => ta.question).filter(Boolean);
+    const enrichedQuestionsMap = new Map();
+    if (rawQuestions.length > 0) {
+      const enrichedList = await contentStatusService.enrichContentList(rawQuestions, 'question', userId);
+      enrichedList.forEach((eq) => enrichedQuestionsMap.set(eq.id, eq));
+    }
+
     // Performance breakdown by difficulty and by topic
     const diffStats = { easy: { total: 0, correct: 0 }, medium: { total: 0, correct: 0 }, tough: { total: 0, correct: 0 } };
     const topicStatsMap = new Map();
 
     const questionsReview = (attempt.answers || []).map((ta) => {
       const q = ta.question;
+      const enrichedQ = q ? enrichedQuestionsMap.get(q.id) : null;
       const diff = q ? q.difficulty : 'medium';
       const topicName = q && q.topic ? q.topic.name : 'General';
 
@@ -264,6 +274,7 @@ const getResultDetail = async (req, res, next) => {
         topicName,
         difficulty: diff,
         source: q ? q.source : null,
+        isNew: Boolean(enrichedQ && enrichedQ.isNew),
       };
     });
 

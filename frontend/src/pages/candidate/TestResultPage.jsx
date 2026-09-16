@@ -240,11 +240,16 @@ const TestResultPage = () => {
               >
                 {/* Status Badges */}
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="font-bold text-xs font-mono bg-slate-200 text-slate-800 px-2.5 py-1 rounded-md">
                       #{index + 1}
                     </span>
                     <DifficultyBadge difficulty={q.difficulty} />
+                    {q.isNew && (
+                      <span className="bg-amber-500 text-slate-950 font-black px-2.5 py-0.5 text-[10px] uppercase rounded-full tracking-wider shrink-0 shadow-xs">
+                        NEW
+                      </span>
+                    )}
                     <span className="text-xs text-slate-500 font-medium bg-slate-100 px-2.5 py-1 rounded-md">
                       {q.topicName}
                     </span>

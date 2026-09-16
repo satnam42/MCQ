@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Sparkles, FileText, User, CheckCircle, ChevronRight, ChevronLeft, BookOpen, Layers } from 'lucide-react';
 import noteService from '../../services/noteService';
 import NoteViewer from '../../components/notes/NoteViewer';
+import { trackContentView } from '../../services/api';
 
 const StudyNotesPage = () => {
   const [topics, setTopics] = useState([]);
@@ -62,6 +63,7 @@ const StudyNotesPage = () => {
         setNotes(fetchedNotes);
         if (fetchedNotes.length > 0) {
           setActiveNoteId(fetchedNotes[0].id);
+          trackContentView('note', fetchedNotes[0].id);
         } else {
           setActiveNoteId(null);
         }
@@ -81,6 +83,7 @@ const StudyNotesPage = () => {
   const handleSelectAuthor = (noteId) => {
     setActiveNoteId(noteId);
     setIsMobileAuthorListExpanded(false);
+    trackContentView('note', noteId);
 
     // Smooth scroll directly to active note viewer section
     setTimeout(() => {
@@ -211,13 +214,23 @@ const StudyNotesPage = () => {
                         : 'bg-white text-slate-800 font-bold hover:bg-amber-50/80 border border-slate-200 hover:border-amber-300'
                     }`}
                   >
-                    <div className="flex items-center space-x-3 min-w-0 pr-2">
+                    <div className="flex items-center space-x-2 min-w-0 pr-2 flex-wrap gap-y-1">
                       <span className={`text-sm flex-shrink-0 ${isSelected ? 'text-amber-200' : 'text-amber-500'}`}>
                         ★
                       </span>
                       <span className="text-sm tracking-tight leading-snug break-words">
                         {note.title}
                       </span>
+                      {note.isNew && (
+                        <span className="bg-amber-500 text-slate-950 font-black px-1.5 py-0.5 text-[9px] uppercase rounded-full shrink-0">
+                          NEW
+                        </span>
+                      )}
+                      {!note.isNew && note.isUnseen && (
+                        <span className="bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 text-[9px] rounded-full shrink-0">
+                          UNSEEN
+                        </span>
+                      )}
                     </div>
                     {isSelected ? (
                       <CheckCircle className="w-4 h-4 text-amber-200 flex-shrink-0 ml-1" />
