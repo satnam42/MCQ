@@ -29,4 +29,15 @@ describe('Daily Quiz Service Unit & Integration Tests', () => {
     expect(quiz1.id).toBe(quiz2.id);
     expect(quiz1.questions.map((q) => q.id)).toEqual(quiz2.questions.map((q) => q.id));
   });
+
+  test('getOrGenerateDailyQuiz respects limit=100 and limit=150 parameters', async () => {
+    const testDate = '2026-08-21';
+    const quiz100 = await dailyQuizService.getOrGenerateDailyQuiz(testDate, 100);
+    expect(quiz100).toBeDefined();
+    expect(quiz100.questions.length).toBeGreaterThanOrEqual(50);
+
+    const quiz150 = await dailyQuizService.getOrGenerateDailyQuiz(testDate, 150);
+    expect(quiz150).toBeDefined();
+    expect(quiz150.questions.length).toBeGreaterThanOrEqual(quiz100.questions.length);
+  });
 });
