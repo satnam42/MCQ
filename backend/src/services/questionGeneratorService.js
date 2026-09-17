@@ -294,10 +294,12 @@ class LocalQuestionGeneratorStrategy extends BaseQuestionGeneratorStrategy {
     }));
 
     // Attach exhaustion & partial metadata onto array for response formatters
-    if (unansweredCount < numLimit && unansweredCount > 0 && userId) {
-      formatted.isExhausted = false;
+    if (selectedQuestions.length < numLimit) {
+      formatted.isExhausted = unansweredCount === 0;
       formatted.partialRemaining = true;
-      formatted.message = `Only ${selectedQuestions.length} new questions are remaining in this topic.`;
+      formatted.message = (unansweredCount < numLimit && unansweredCount > 0 && userId)
+        ? `Only ${selectedQuestions.length} new questions are remaining in this topic.`
+        : `Only ${selectedQuestions.length} questions are currently available for this topic.`;
       formatted.requestedLimit = numLimit;
       formatted.returnedCount = selectedQuestions.length;
       formatted.remainingCount = selectedQuestions.length;

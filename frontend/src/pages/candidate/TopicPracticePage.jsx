@@ -220,23 +220,29 @@ const TopicPracticePage = () => {
             )}
           </div>
 
-          {/* Warning Banner for New Questions Only mode */}
-          {repetitionMode === 'recent_new' && selectedTopic && (
-            <div className={`p-3.5 rounded-2xl border text-xs font-bold ${
-              (selectedTopic.newQuestionCount || 0) === 0
-                ? 'bg-rose-50 border-rose-200 text-rose-800'
-                : (selectedTopic.newQuestionCount || 0) < questionCount
-                ? 'bg-amber-50 border-amber-200 text-amber-900'
-                : 'bg-emerald-50 border-emerald-200 text-emerald-900'
-            }`}>
-              {(selectedTopic.newQuestionCount || 0) === 0 ? (
-                <span>⚠️ No recently added [NEW] questions are currently available for this topic.</span>
-              ) : (selectedTopic.newQuestionCount || 0) < questionCount ? (
-                <span>ℹ️ You selected {questionCount} questions, but only {selectedTopic.newQuestionCount} recently added questions are available. All {selectedTopic.newQuestionCount} will be loaded.</span>
-              ) : (
-                <span>✨ All {questionCount} questions will be chosen from recently added [NEW] content.</span>
-              )}
-            </div>
+          {/* Warning Banner for Available Questions */}
+          {selectedTopic && (
+            repetitionMode === 'recent_new' ? (
+              <div className={`p-3.5 rounded-2xl border text-xs font-bold ${
+                (selectedTopic.newQuestionCount || 0) === 0
+                  ? 'bg-rose-50 border-rose-200 text-rose-800'
+                  : (selectedTopic.newQuestionCount || 0) < questionCount
+                  ? 'bg-amber-50 border-amber-200 text-amber-900'
+                  : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+              }`}>
+                {(selectedTopic.newQuestionCount || 0) === 0 ? (
+                  <span>⚠️ No recently added [NEW] questions are currently available for this topic.</span>
+                ) : (selectedTopic.newQuestionCount || 0) < questionCount ? (
+                  <span>ℹ️ You selected {questionCount} questions, but only {selectedTopic.newQuestionCount} recently added questions are available. All {selectedTopic.newQuestionCount} will be loaded.</span>
+                ) : (
+                  <span>✨ All {questionCount} questions will be chosen from recently added [NEW] content.</span>
+                )}
+              </div>
+            ) : (selectedTopic.questionCount || 0) < questionCount ? (
+              <div className="p-3.5 rounded-2xl border border-amber-200 bg-amber-50 text-amber-900 text-xs font-bold">
+                <span>ℹ️ Only {selectedTopic.questionCount || 0} questions are currently available for this topic.</span>
+              </div>
+            ) : null
           )}
 
           {/* Question Count Radio selector */}
@@ -256,7 +262,7 @@ const TopicPracticePage = () => {
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
-                  {cnt} Qs
+                  {cnt} Questions
                 </button>
               ))}
             </div>

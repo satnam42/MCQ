@@ -40,67 +40,92 @@ class DailyQuizService {
     let formatted = this.formatQuizResponse(quiz);
 
     // If userId provided, filter out questions answered by this user across all days
+    let activeQuestions = formatted.questions;
+    let answeredIds = new Set();
     if (userId) {
       const userAnswers = await UserAnsweredQuestion.findAll({
         where: { user_id: userId },
         attributes: ['question_id'],
       });
-      const answeredIds = new Set(userAnswers.map((a) => a.question_id));
-
+      answeredIds = new Set(userAnswers.map((a) => a.question_id));
       if (answeredIds.size > 0) {
-        const unansweredQuizQuestions = formatted.questions.filter((q) => !answeredIds.has(q.id));
-
-        if (unansweredQuizQuestions.length < reqLimit) {
-          const excludedIds = [...Array.from(answeredIds), ...unansweredQuizQuestions.map((q) => q.id)];
-          const extraUnanswered = await Question.findAll({
-            where: {
-              is_active: true,
-              id: { [Op.notIn]: excludedIds.length ? excludedIds : [0] },
-            },
-            include: [
-              { model: Topic, as: 'topic', attributes: ['id', 'name'] },
-              { model: Subtopic, as: 'subtopic', attributes: ['id', 'name'] },
-            ],
-            limit: reqLimit - unansweredQuizQuestions.length,
-            order: sequelize.random(),
-          });
-
-          const formattedExtra = extraUnanswered.map((q, index) => ({
-            order: unansweredQuizQuestions.length + index + 1,
-            id: q.id,
-            question: q.question,
-            options: {
-              A: q.option_a,
-              B: q.option_b,
-              C: q.option_c,
-              D: q.option_d,
-            },
-            topicId: q.topic_id,
-            topicName: q.topic ? q.topic.name : '',
-            subtopicName: q.subtopic ? q.subtopic.name : '',
-            difficulty: q.difficulty,
-            source: q.source,
-            createdAt: q.created_at || q.createdAt,
-            created_at: q.created_at || q.createdAt,
-          }));
-
-          formatted.questions = [...unansweredQuizQuestions, ...formattedExtra];
-        } else {
-          formatted.questions = unansweredQuizQuestions;
-        }
+        activeQuestions = activeQuestions.filter((q) => !answeredIds.has(q.id));
       }
     }
 
-    if (formatted.questions.length >= reqLimit) {
-      formatted.questions = formatted.questions.slice(0, reqLimit);
+    // If activeQuestions count is less than reqLimit (e.g. daily quiz has 50 questions, but candidate requested 100 or 150),
+    // fetch additional active questions to meet reqLimit
+    if (activeQuestions.length < reqLimit) {
+      const existingIds = new Set(activeQuestions.map((q) => q.id));
+      const excludedIds = Array.from(new Set([...Array.from(answeredIds), ...Array.from(existingIds)]));
+
+      let extraQuestions = await Question.findAll({
+        where: {
+          is_active: true,
+          id: { [Op.notIn]: excludedIds.length ? excludedIds : [0] },
+        },
+        include: [
+          { model: Topic, as: 'topic', attributes: ['id', 'name'] },
+          { model: Subtopic, as: 'subtopic', attributes: ['id', 'name'] },
+        ],
+        limit: reqLimit - activeQuestions.length,
+        order: sequelize.random(),
+      });
+
+      // If excluding answered questions leaves us short of reqLimit, fallback to fetching active questions regardless of answered status
+      if (activeQuestions.length + extraQuestions.length < reqLimit) {
+        const currentIds = Array.from(new Set([...Array.from(existingIds), ...extraQuestions.map((q) => q.id)]));
+        const fallbackExtra = await Question.findAll({
+          where: {
+            is_active: true,
+            id: { [Op.notIn]: currentIds.length ? currentIds : [0] },
+          },
+          include: [
+            { model: Topic, as: 'topic', attributes: ['id', 'name'] },
+            { model: Subtopic, as: 'subtopic', attributes: ['id', 'name'] },
+          ],
+          limit: reqLimit - (activeQuestions.length + extraQuestions.length),
+          order: sequelize.random(),
+        });
+        extraQuestions = [...extraQuestions, ...fallbackExtra];
+      }
+
+      const formattedExtra = extraQuestions.map((q, index) => ({
+        order: activeQuestions.length + index + 1,
+        id: q.id,
+        question: q.question,
+        options: {
+          A: q.option_a,
+          B: q.option_b,
+          C: q.option_c,
+          D: q.option_d,
+        },
+        topicId: q.topic_id,
+        topicName: q.topic ? q.topic.name : '',
+        subtopicName: q.subtopic ? q.subtopic.name : '',
+        difficulty: q.difficulty,
+        source: q.source,
+        createdAt: q.created_at || q.createdAt,
+        created_at: q.created_at || q.createdAt,
+      }));
+
+      activeQuestions = [...activeQuestions, ...formattedExtra];
     }
-    
-    const enriched = await contentStatusService.enrichContentList(formatted.questions, 'question', userId);
-    formatted.questions = enriched.map((q) => ({
+
+    if (activeQuestions.length >= reqLimit) {
+      activeQuestions = activeQuestions.slice(0, reqLimit);
+    }
+
+    const enriched = await contentStatusService.enrichContentList(activeQuestions, 'question', userId);
+    formatted.questions = enriched.map((q, idx) => ({
       ...q,
+      order: idx + 1,
       isNew: Boolean(q.isNew),
     }));
     formatted.totalQuestions = formatted.questions.length;
+    if (formatted.totalQuestions < reqLimit) {
+      formatted.message = `Only ${formatted.totalQuestions} questions are currently available.`;
+    }
     return formatted;
   }
 

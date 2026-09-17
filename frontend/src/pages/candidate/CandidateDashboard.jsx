@@ -97,7 +97,7 @@ const CandidateDashboard = () => {
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200'
                     }`}
                   >
-                    {cnt} Qs
+                    {cnt} Questions
                   </button>
                 ))}
               </div>

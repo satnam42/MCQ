@@ -7,6 +7,7 @@ const startTest = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { dailyQuizId, testType = 'daily', topicId, difficulty, totalQuestions } = req.body;
+    const parsedTotalQuestions = parseInt(totalQuestions, 10) || 50;
 
     const attempt = await TestAttempt.create({
       user_id: userId,
@@ -14,7 +15,7 @@ const startTest = async (req, res, next) => {
       test_type: testType,
       topic_id: topicId || null,
       difficulty: difficulty || null,
-      total_questions: totalQuestions || 50,
+      total_questions: parsedTotalQuestions,
       started_at: new Date(),
     });
 
