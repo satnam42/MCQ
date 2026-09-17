@@ -9,6 +9,8 @@ const TestAttempt = require('./TestAttempt');
 const TestAnswer = require('./TestAnswer');
 const Note = require('./Note');
 const UserAnsweredQuestion = require('./UserAnsweredQuestion');
+const SystemSetting = require('./SystemSetting');
+const UserContentView = require('./UserContentView');
 
 // Topic & Subtopic
 Topic.hasMany(Subtopic, { foreignKey: 'topic_id', as: 'subtopics', onDelete: 'CASCADE' });
@@ -41,6 +43,10 @@ UserAnsweredQuestion.belongsTo(Question, { foreignKey: 'question_id', as: 'quest
 // Topic & UserAnsweredQuestion
 Topic.hasMany(UserAnsweredQuestion, { foreignKey: 'topic_id', as: 'userAnsweredQuestions', onDelete: 'SET NULL' });
 UserAnsweredQuestion.belongsTo(Topic, { foreignKey: 'topic_id', as: 'topic' });
+
+// User & UserContentView
+User.hasMany(UserContentView, { foreignKey: 'user_id', as: 'userContentViews', onDelete: 'CASCADE' });
+UserContentView.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 // DailyQuiz & Question (through DailyQuizQuestion)
 DailyQuiz.belongsToMany(Question, {
@@ -94,5 +100,7 @@ module.exports = {
   TestAnswer,
   Note,
   UserAnsweredQuestion,
+  SystemSetting,
+  UserContentView,
 };
 

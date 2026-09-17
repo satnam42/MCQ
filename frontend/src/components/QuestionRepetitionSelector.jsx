@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Sparkles, CheckCircle2 } from 'lucide-react';
+import { RefreshCw, Sparkles, Flame, CheckCircle2 } from 'lucide-react';
 
 const QuestionRepetitionSelector = ({ value = 'mix', onChange }) => {
   const options = [
@@ -15,13 +15,23 @@ const QuestionRepetitionSelector = ({ value = 'mix', onChange }) => {
     },
     {
       id: 'only_new',
-      title: '🆕 Only Completely New Questions',
+      title: '🆕 Only Completely Unattempted Questions',
       badge: 'Unattempted Only',
       description: 'Generates questions that you have never attempted before in any previous attempt across all topics and difficulties.',
       icon: Sparkles,
       borderColor: 'border-emerald-500',
       bgColor: 'bg-emerald-50/70',
       activeBadgeBg: 'bg-emerald-600 text-white',
+    },
+    {
+      id: 'recent_new',
+      title: '✨ Recently Added Questions Only ([NEW])',
+      badge: '[NEW] Tagged Only',
+      description: 'Generates questions that were recently created in the database and currently display the dynamic [NEW] badge.',
+      icon: Flame,
+      borderColor: 'border-purple-500',
+      bgColor: 'bg-purple-50/70',
+      activeBadgeBg: 'bg-purple-600 text-white',
     },
   ];
 

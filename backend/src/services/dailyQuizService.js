@@ -1,5 +1,6 @@
 const { sequelize, DailyQuiz, DailyQuizQuestion, Question, Topic, Subtopic, UserAnsweredQuestion } = require('../models');
 const { Op } = require('sequelize');
+const contentStatusService = require('./contentStatusService');
 
 class DailyQuizService {
   /**
@@ -79,6 +80,8 @@ class DailyQuizService {
             subtopicName: q.subtopic ? q.subtopic.name : '',
             difficulty: q.difficulty,
             source: q.source,
+            createdAt: q.created_at || q.createdAt,
+            created_at: q.created_at || q.createdAt,
           }));
 
           formatted.questions = [...unansweredQuizQuestions, ...formattedExtra];
@@ -91,6 +94,12 @@ class DailyQuizService {
     if (formatted.questions.length >= reqLimit) {
       formatted.questions = formatted.questions.slice(0, reqLimit);
     }
+    
+    const enriched = await contentStatusService.enrichContentList(formatted.questions, 'question', userId);
+    formatted.questions = enriched.map((q) => ({
+      ...q,
+      isNew: Boolean(q.isNew),
+    }));
     formatted.totalQuestions = formatted.questions.length;
     return formatted;
   }
@@ -237,6 +246,8 @@ class DailyQuizService {
         difficulty: q.difficulty,
         source: q.source,
         sourceUrl: q.source_url,
+        createdAt: q ? (q.created_at || q.createdAt) : null,
+        created_at: q ? (q.created_at || q.createdAt) : null,
       };
     });
 

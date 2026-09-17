@@ -18,6 +18,7 @@ const ManageQuestionsPage = () => {
   const [search, setSearch] = useState('');
   const [selectedTopic, setSelectedTopic] = useState(initialTopic);
   const [selectedDifficulty, setSelectedDifficulty] = useState(initialDifficulty);
+  const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -75,9 +76,10 @@ const ManageQuestionsPage = () => {
     try {
       const topicQuery = selectedTopic ? `&topicId=${selectedTopic}` : '';
       const diffQuery = selectedDifficulty ? `&difficulty=${selectedDifficulty}` : '';
+      const statusQuery = statusFilter && statusFilter !== 'all' ? `&status=${statusFilter}` : '';
       const searchQuery = search ? `&search=${encodeURIComponent(search)}` : '';
 
-      const res = await api.get(`/questions?page=${page}&limit=10${topicQuery}${diffQuery}${searchQuery}`);
+      const res = await api.get(`/questions?page=${page}&limit=10${topicQuery}${diffQuery}${statusQuery}${searchQuery}`);
       if (res.data.success) {
         setQuestions(res.data.data.questions);
         setTotalPages(res.data.data.pagination.totalPages);
@@ -114,7 +116,7 @@ const ManageQuestionsPage = () => {
   useEffect(() => {
     setSelectedIds([]);
     fetchQuestions();
-  }, [page, selectedTopic, selectedDifficulty]);
+  }, [page, selectedTopic, selectedDifficulty, statusFilter]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -333,6 +335,19 @@ const ManageQuestionsPage = () => {
             <option value="medium">Medium</option>
             <option value="tough">Tough</option>
           </select>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
+            className="px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-amber-50 text-amber-900 border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+          >
+            <option value="all">All Statuses</option>
+            <option value="new">New Only [NEW]</option>
+            <option value="expired_new">Expired New</option>
+          </select>
         </div>
       </div>
 
@@ -383,8 +398,15 @@ const ManageQuestionsPage = () => {
                         />
                       </td>
                       <td className="py-4 px-4 font-mono text-xs text-slate-500">#{q.id}</td>
-                      <td className="py-4 px-6 font-gurmukhi font-semibold text-slate-900 max-w-md truncate">
-                        {q.question}
+                      <td className="py-4 px-6 font-gurmukhi font-semibold text-slate-900 max-w-md">
+                        <div className="flex items-center space-x-2">
+                          {q.isNew && (
+                            <span className="bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-black px-2 py-0.5 text-[10px] uppercase rounded-full tracking-wider shrink-0">
+                              NEW
+                            </span>
+                          )}
+                          <span className="truncate block">{q.question}</span>
+                        </div>
                       </td>
                       <td className="py-4 px-6 text-xs text-slate-600 font-medium font-gurmukhi">
                         {q.topicName || q.Topic?.name}

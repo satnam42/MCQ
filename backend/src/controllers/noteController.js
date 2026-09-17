@@ -1,5 +1,6 @@
 const { Note, Topic, User, sequelize } = require('../models');
 const { parseTextToHtml, sanitizeHtmlContent } = require('../services/noteParserService');
+const contentStatusService = require('../services/contentStatusService');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
 
 /**
@@ -264,20 +265,21 @@ const previewNote = async (req, res, next) => {
  */
 const getNotes = async (req, res, next) => {
   try {
-    const { topicId, status } = req.query;
+    const { topicId, status, contentStatus } = req.query;
+    const userId = req.user ? req.user.id : null;
     const whereClause = {};
 
     if (topicId && !isNaN(parseInt(topicId, 10))) {
       whereClause.topic_id = parseInt(topicId, 10);
     }
 
-    if (status) {
+    if (status && ['active', 'inactive', 'archived'].includes(status)) {
       whereClause.status = status;
     } else if (!req.user || req.user.role !== 'admin') {
       whereClause.status = 'active';
     }
 
-    const notes = await Note.findAll({
+    const rawNotes = await Note.findAll({
       where: whereClause,
       include: [
         { model: Topic, as: 'topic', attributes: ['id', 'name', 'description'] },
@@ -286,7 +288,11 @@ const getNotes = async (req, res, next) => {
       order: [['created_at', 'DESC']],
     });
 
-    return successResponse(res, { notes }, 'Notes retrieved successfully');
+    const enrichedNotes = await contentStatusService.enrichContentList(rawNotes, 'note', userId);
+    const filterTag = contentStatus || (status && !['active', 'inactive', 'archived'].includes(status) ? status : null);
+    const filteredNotes = contentStatusService.filterByStatus(enrichedNotes, filterTag);
+
+    return successResponse(res, { notes: filteredNotes }, 'Notes retrieved successfully');
   } catch (err) {
     next(err);
   }

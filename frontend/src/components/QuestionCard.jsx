@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import DifficultyBadge from './DifficultyBadge';
 import { Bookmark, RotateCcw } from 'lucide-react';
+import { trackContentView } from '../services/api';
 
 const QuestionCard = ({
   question,
@@ -12,6 +13,12 @@ const QuestionCard = ({
   onToggleMark,
   onClearAnswer,
 }) => {
+  useEffect(() => {
+    if (question && question.id) {
+      trackContentView('question', question.id);
+    }
+  }, [question?.id]);
+
   if (!question) return null;
 
   const options = question.options || {
@@ -27,11 +34,21 @@ const QuestionCard = ({
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
       {/* Header Info */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-4 mb-6 border-b border-slate-100">
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="bg-amber-100 text-amber-900 px-3 py-1 rounded-full text-xs font-bold font-mono">
             Question {questionNumber} / {totalQuestions}
           </span>
           <DifficultyBadge difficulty={question.difficulty} />
+          {question.isNew && (
+            <span className="bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-black px-2.5 py-0.5 text-[10px] uppercase rounded-full tracking-wider shadow-xs shrink-0 animate-pulse">
+              NEW
+            </span>
+          )}
+          {!question.isNew && question.isUnseen && (
+            <span className="bg-blue-50 text-blue-700 border border-blue-200 font-bold px-2 py-0.5 text-[10px] rounded-full shrink-0">
+              UNSEEN
+            </span>
+          )}
           {question.topicName && (
             <span className="text-xs text-slate-500 font-medium bg-slate-100 px-2.5 py-1 rounded-md">
               {question.topicName}

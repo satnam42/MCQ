@@ -1,11 +1,15 @@
 const { Topic, Subtopic, Question, DailyQuizQuestion, TestAnswer, TestAttempt, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const questionGeneratorService = require('../services/questionGeneratorService');
+const contentStatusService = require('../services/contentStatusService');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
 
 const getTopics = async (req, res, next) => {
   try {
-    const topics = await Topic.findAll({
+    const userId = req.user ? req.user.id : null;
+    const { status } = req.query;
+
+    const rawTopics = await Topic.findAll({
       where: { is_active: true },
       include: [
         { model: Subtopic, as: 'subtopics', attributes: ['id', 'name', 'description'] },
@@ -22,10 +26,20 @@ const getTopics = async (req, res, next) => {
           ],
         ],
       },
-      order: [['name', 'ASC']],
+      order: [['created_at', 'DESC'], ['name', 'ASC']],
     });
 
-    return successResponse(res, { topics }, 'Topics list retrieved successfully');
+    const newCountsMap = await contentStatusService.getNewQuestionCountsByTopic();
+    const enrichedTopics = await contentStatusService.enrichContentList(rawTopics, 'topic', userId);
+    
+    const topicsWithNewCount = enrichedTopics.map((t) => ({
+      ...t,
+      newQuestionCount: newCountsMap[t.id] || 0,
+    }));
+
+    const filteredTopics = contentStatusService.filterByStatus(topicsWithNewCount, status);
+
+    return successResponse(res, { topics: filteredTopics }, 'Topics list retrieved successfully');
   } catch (err) {
     next(err);
   }
@@ -36,7 +50,7 @@ const getTopicQuestions = async (req, res, next) => {
     const { topicId } = req.params;
     const limit = parseInt(req.query.limit || 50, 10);
     const difficulty = req.query.difficulty; // 'easy', 'medium', 'tough', or null/all
-    const repetitionMode = req.query.repetitionMode || 'mix'; // 'mix' or 'only_new'
+    const repetitionMode = req.query.repetitionMode || 'mix'; // 'mix', 'only_new', or 'recent_new'
     const userId = req.user ? req.user.id : null;
 
     const topic = await Topic.findByPk(topicId);
@@ -52,7 +66,9 @@ const getTopicQuestions = async (req, res, next) => {
       repetitionMode,
     });
 
-    const formattedQuestions = generatedQuestions.map((q, index) => ({
+    const enrichedQuestions = await contentStatusService.enrichContentList(generatedQuestions, 'question', userId);
+
+    const formattedQuestions = enrichedQuestions.map((q, index) => ({
       order: index + 1,
       id: q.id,
       question: q.question,
@@ -67,6 +83,10 @@ const getTopicQuestions = async (req, res, next) => {
       subtopicName: q.subtopicName || q.subtopic || '',
       difficulty: q.difficulty,
       source: q.source,
+      isNew: Boolean(q.isNew),
+      isSeen: Boolean(q.isSeen),
+      isUnseen: Boolean(q.isUnseen),
+      newUntil: q.newUntil,
     }));
 
     return successResponse(
@@ -75,6 +95,8 @@ const getTopicQuestions = async (req, res, next) => {
         topic: { id: topic.id, name: topic.name },
         totalQuestions: formattedQuestions.length,
         questions: formattedQuestions,
+        message: generatedQuestions.message || null,
+        partialRemaining: generatedQuestions.partialRemaining || false,
       },
       'Topic practice questions retrieved'
     );

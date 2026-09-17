@@ -1,5 +1,6 @@
 const { Question, Topic, Subtopic, TestAttempt, TestAnswer, UserAnsweredQuestion, sequelize } = require('../models');
 const { Op } = require('sequelize');
+const contentStatusService = require('./contentStatusService');
 
 /**
  * Strategy interface for Question Generator
@@ -28,6 +29,65 @@ class LocalQuestionGeneratorStrategy extends BaseQuestionGeneratorStrategy {
     if (topicId) baseWhere.topic_id = topicId;
     if (difficulty && difficulty !== 'all') {
       baseWhere.difficulty = difficulty.toLowerCase();
+    }
+
+    // Explicit Mode: 'recent_new' (Recently Added Questions Only)
+    if (repetitionMode === 'recent_new') {
+      const durationDays = await contentStatusService.getNewContentDurationDays();
+      const deploymentDate = await contentStatusService.getFeatureDeploymentDate();
+      const minCreatedAt = new Date(Math.max(
+        deploymentDate.getTime(),
+        Date.now() - durationDays * 86400 * 1000
+      ));
+
+      const recentNewWhere = {
+        ...baseWhere,
+        created_at: { [Op.gte]: minCreatedAt },
+      };
+
+      const recentNewQuestions = await Question.findAll({
+        where: recentNewWhere,
+        limit: numLimit,
+        include: [
+          { model: Topic, as: 'topic', attributes: ['id', 'name'] },
+          { model: Subtopic, as: 'subtopic', attributes: ['id', 'name'] },
+        ],
+        order: sequelize.random(),
+      });
+
+      const formatted = recentNewQuestions.map((q) => ({
+        id: q.id,
+        question: q.question,
+        optionA: q.option_a,
+        optionB: q.option_b,
+        optionC: q.option_c,
+        optionD: q.option_d,
+        options: {
+          A: q.option_a,
+          B: q.option_b,
+          C: q.option_c,
+          D: q.option_d,
+        },
+        correctOption: q.correct_option,
+        explanation: q.explanation,
+        topicId: q.topic_id,
+        topic: q.topic ? q.topic.name : '',
+        topicName: q.topic ? q.topic.name : '',
+        subtopic: q.subtopic ? q.subtopic.name : '',
+        subtopicName: q.subtopic ? q.subtopic.name : '',
+        difficulty: q.difficulty,
+        source: q.source || 'Local Database',
+        createdAt: q.created_at || q.createdAt,
+        created_at: q.created_at || q.createdAt,
+        isNew: true,
+      }));
+
+      if (recentNewQuestions.length < numLimit) {
+        formatted.partialRemaining = true;
+        formatted.message = `You selected ${numLimit} questions, but only ${recentNewQuestions.length} recently added questions are currently available.`;
+      }
+
+      return formatted;
     }
 
     const answeredQuestionIds = new Set();
@@ -153,6 +213,8 @@ class LocalQuestionGeneratorStrategy extends BaseQuestionGeneratorStrategy {
         subtopicName: q.subtopic ? q.subtopic.name : '',
         difficulty: q.difficulty,
         source: q.source || 'Local Database',
+        createdAt: q.created_at || q.createdAt,
+        created_at: q.created_at || q.createdAt,
       }));
 
       return formatted;
@@ -227,6 +289,8 @@ class LocalQuestionGeneratorStrategy extends BaseQuestionGeneratorStrategy {
       subtopicName: q.subtopic ? q.subtopic.name : '',
       difficulty: q.difficulty,
       source: q.source || 'Local Database',
+      createdAt: q.created_at || q.createdAt,
+      created_at: q.created_at || q.createdAt,
     }));
 
     // Attach exhaustion & partial metadata onto array for response formatters

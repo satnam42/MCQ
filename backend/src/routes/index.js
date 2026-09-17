@@ -8,6 +8,8 @@ const topicRoutes = require('./topicRoutes');
 const progressRoutes = require('./progressRoutes');
 const questionRoutes = require('./questionRoutes');
 const noteRoutes = require('./noteRoutes');
+const settingsRoutes = require('./settingsRoutes');
+const contentViewRoutes = require('./contentViewRoutes');
 
 router.use('/auth', authRoutes);
 router.use('/daily-quiz', dailyQuizRoutes);
@@ -16,6 +18,8 @@ router.use('/topics', topicRoutes);
 router.use('/progress', progressRoutes);
 router.use('/questions', questionRoutes);
 router.use('/notes', noteRoutes);
+router.use('/settings', settingsRoutes);
+router.use('/content', contentViewRoutes);
 
 module.exports = router;
 

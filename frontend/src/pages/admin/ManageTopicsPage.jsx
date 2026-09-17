@@ -14,12 +14,14 @@ const ManageTopicsPage = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [modalError, setModalError] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
-  const fetchTopics = async () => {
+  const fetchTopics = async (filter = statusFilter) => {
     setLoading(true);
     setError('');
     try {
-      const res = await api.get('/topics');
+      const url = filter && filter !== 'all' ? `/topics?status=${filter}` : '/topics';
+      const res = await api.get(url);
       if (res.data.success) {
         setTopics(res.data.data.topics || []);
       }
@@ -32,8 +34,8 @@ const ManageTopicsPage = () => {
   };
 
   useEffect(() => {
-    fetchTopics();
-  }, []);
+    fetchTopics(statusFilter);
+  }, [statusFilter]);
 
   const handleOpenDeleteModal = (topic) => {
     setDeleteTopicData({
@@ -165,12 +167,49 @@ const ManageTopicsPage = () => {
         </div>
       </div>
 
-      {/* Topics Grid */}
+      {/* Topics Grid Header & Status Tabs */}
       <div className="space-y-4">
-        <h2 className="text-lg font-bold text-slate-900 flex items-center justify-between">
-          <span>Active Topics List</span>
-          <span className="text-xs font-normal text-slate-500">{topics.length} Topics</span>
-        </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <h2 className="text-lg font-bold text-slate-900 flex items-center space-x-2">
+            <span>Active Topics List</span>
+            <span className="text-xs font-normal text-slate-500">({topics.length} Topics)</span>
+          </h2>
+
+          {/* Admin Status Filter Tabs */}
+          <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200 self-start sm:self-auto">
+            <button
+              onClick={() => setStatusFilter('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                statusFilter === 'all'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              All Topics
+            </button>
+            <button
+              onClick={() => setStatusFilter('new')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 ${
+                statusFilter === 'new'
+                  ? 'bg-amber-500 text-slate-950 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+              <span>New</span>
+            </button>
+            <button
+              onClick={() => setStatusFilter('expired_new')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                statusFilter === 'expired_new'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Expired New
+            </button>
+          </div>
+        </div>
 
         {loading ? (
           <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center">
@@ -181,7 +220,7 @@ const ManageTopicsPage = () => {
           <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center space-y-3">
             <BookOpen className="w-12 h-12 text-slate-300 mx-auto" />
             <h3 className="text-base font-bold text-slate-800">No Topics Found</h3>
-            <p className="text-xs text-slate-500">No active topics are currently registered in the database.</p>
+            <p className="text-xs text-slate-500">No active topics matching the selected filter were found.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -192,12 +231,19 @@ const ManageTopicsPage = () => {
               return (
                 <div
                   key={t.id}
-                  className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between space-y-5 hover:border-slate-300 transition-all"
+                  className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between space-y-5 hover:border-slate-300 transition-all relative overflow-hidden"
                 >
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-amber-50 text-amber-900 border border-amber-200 rounded-full text-xs font-bold font-mono">
-                        <span>ID #{t.id}</span>
+                      <div className="flex items-center space-x-1.5">
+                        <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-amber-50 text-amber-900 border border-amber-200 rounded-full text-xs font-bold font-mono">
+                          <span>ID #{t.id}</span>
+                        </div>
+                        {t.isNew && (
+                          <span className="bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-black px-2.5 py-0.5 text-[10px] uppercase rounded-full tracking-wider shadow-xs shrink-0 animate-pulse">
+                            NEW
+                          </span>
+                        )}
                       </div>
                       <span className="text-xs font-bold px-3 py-1 bg-slate-100 text-slate-700 rounded-full">
                         {qCount} Questions
@@ -205,8 +251,8 @@ const ManageTopicsPage = () => {
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900 font-gurmukhi leading-snug">
-                        {t.name}
+                      <h3 className="text-lg font-bold text-slate-900 font-gurmukhi leading-snug flex items-center space-x-2">
+                        <span>{t.name}</span>
                       </h3>
                       {t.description && (
                         <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed font-gurmukhi">

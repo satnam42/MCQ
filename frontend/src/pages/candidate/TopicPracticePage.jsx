@@ -143,6 +143,9 @@ const TopicPracticePage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {topics.map((t) => {
               const isSelected = selectedTopic?.id === t.id;
+              const qCount = parseInt(t.questionCount, 10) || 0;
+              const newCount = parseInt(t.newQuestionCount, 10) || 0;
+
               return (
                 <div
                   key={t.id}
@@ -155,9 +158,16 @@ const TopicPracticePage = () => {
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <h3 className="font-bold text-slate-900 text-base mb-1 font-gurmukhi">
-                        {t.name}
-                      </h3>
+                      <div className="flex items-center space-x-2">
+                        <h3 className="font-bold text-slate-900 text-base mb-1 font-gurmukhi">
+                          {t.name}
+                        </h3>
+                        {t.isNew && (
+                          <span className="bg-amber-500 text-slate-950 font-black px-2 py-0.5 text-[10px] uppercase rounded-full tracking-wider shrink-0">
+                            NEW
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
                         {t.description || `Questions on ${t.name}`}
                       </p>
@@ -167,9 +177,18 @@ const TopicPracticePage = () => {
                     )}
                   </div>
                   
-                  <div className="mt-4 pt-3 border-t border-slate-100 text-xs font-semibold text-slate-500 flex justify-between">
-                    <span>Available MCQs: {t.questionCount || 20}+</span>
-                    <span className="text-amber-600">Practice →</span>
+                  <div className="mt-4 pt-3 border-t border-slate-100 text-xs font-semibold text-slate-500 flex justify-between items-center">
+                    <div className="flex items-center space-x-2">
+                      <span>{qCount} MCQs</span>
+                      {newCount > 0 ? (
+                        <span className="bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded-full text-[11px]">
+                          {newCount} New
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-[11px]">0 New</span>
+                      )}
+                    </div>
+                    <span className="text-amber-600 font-bold">Select →</span>
                   </div>
                 </div>
               );
@@ -185,12 +204,40 @@ const TopicPracticePage = () => {
           </h3>
 
           {/* Selected Topic Display */}
-          <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl">
-            <span className="text-xs font-semibold text-amber-800 block">Selected Topic:</span>
-            <span className="text-base font-extrabold text-amber-950 font-gurmukhi block mt-0.5">
-              {selectedTopic?.name || 'None'}
-            </span>
+          <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl space-y-2">
+            <div>
+              <span className="text-xs font-semibold text-amber-800 block">Selected Topic:</span>
+              <span className="text-base font-extrabold text-amber-950 font-gurmukhi block mt-0.5">
+                {selectedTopic?.name || 'None'}
+              </span>
+            </div>
+
+            {selectedTopic && (
+              <div className="flex items-center justify-between text-xs pt-2 border-t border-amber-200/80 text-amber-900 font-bold">
+                <div>Available Questions: <span className="font-black text-slate-900">{selectedTopic.questionCount || 0}</span></div>
+                <div>New Questions: <span className="font-black text-amber-600">{selectedTopic.newQuestionCount || 0}</span></div>
+              </div>
+            )}
           </div>
+
+          {/* Warning Banner for New Questions Only mode */}
+          {repetitionMode === 'recent_new' && selectedTopic && (
+            <div className={`p-3.5 rounded-2xl border text-xs font-bold ${
+              (selectedTopic.newQuestionCount || 0) === 0
+                ? 'bg-rose-50 border-rose-200 text-rose-800'
+                : (selectedTopic.newQuestionCount || 0) < questionCount
+                ? 'bg-amber-50 border-amber-200 text-amber-900'
+                : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+            }`}>
+              {(selectedTopic.newQuestionCount || 0) === 0 ? (
+                <span>⚠️ No recently added [NEW] questions are currently available for this topic.</span>
+              ) : (selectedTopic.newQuestionCount || 0) < questionCount ? (
+                <span>ℹ️ You selected {questionCount} questions, but only {selectedTopic.newQuestionCount} recently added questions are available. All {selectedTopic.newQuestionCount} will be loaded.</span>
+              ) : (
+                <span>✨ All {questionCount} questions will be chosen from recently added [NEW] content.</span>
+              )}
+            </div>
+          )}
 
           {/* Question Count Radio selector */}
           <div className="space-y-2">
