@@ -1,0 +1,16 @@
+{
+  "name": "mcq-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MCQ Daily Preparation Platform - Full Stack Web Application",
+  "scripts": {
+    "dev": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "build": "npm --prefix frontend run build",
+    "build:dev": "npm --prefix frontend run build:dev",
+    "build:prod": "npm --prefix frontend run build:prod",
+    "start": "npm --prefix backend run start",
+    "test:backend": "npm --prefix backend run test"
+  }
+}

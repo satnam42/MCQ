@@ -10,6 +10,8 @@ const questionRoutes = require('./questionRoutes');
 const noteRoutes = require('./noteRoutes');
 const settingsRoutes = require('./settingsRoutes');
 const contentViewRoutes = require('./contentViewRoutes');
+const permissionRoutes = require('./permissionRoutes');
+const testLimitRoutes = require('./testLimitRoutes');
 
 router.use('/auth', authRoutes);
 router.use('/daily-quiz', dailyQuizRoutes);
@@ -20,6 +22,8 @@ router.use('/questions', questionRoutes);
 router.use('/notes', noteRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/content', contentViewRoutes);
+router.use('/permissions', permissionRoutes);
+router.use('/test-limits', testLimitRoutes);
 
 module.exports = router;
 

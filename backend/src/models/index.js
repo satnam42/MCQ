@@ -1,4 +1,7 @@
 const { sequelize } = require('../config/database');
+const Permission = require('./Permission');
+const Role = require('./Role');
+const RolePermission = require('./RolePermission');
 const User = require('./User');
 const Topic = require('./Topic');
 const Subtopic = require('./Subtopic');
@@ -11,6 +14,8 @@ const Note = require('./Note');
 const UserAnsweredQuestion = require('./UserAnsweredQuestion');
 const SystemSetting = require('./SystemSetting');
 const UserContentView = require('./UserContentView');
+const RoleTestLimit = require('./RoleTestLimit');
+const UserTestLimit = require('./UserTestLimit');
 
 // Topic & Subtopic
 Topic.hasMany(Subtopic, { foreignKey: 'topic_id', as: 'subtopics', onDelete: 'CASCADE' });
@@ -88,8 +93,29 @@ TestAnswer.belongsTo(TestAttempt, { foreignKey: 'attempt_id', as: 'attempt' });
 Question.hasMany(TestAnswer, { foreignKey: 'question_id', as: 'testAnswers' });
 TestAnswer.belongsTo(Question, { foreignKey: 'question_id', as: 'question' });
 
+// Role & Permission (Many-to-Many through RolePermission)
+Role.belongsToMany(Permission, { through: RolePermission, foreignKey: 'role_id', otherKey: 'permission_id', as: 'permissions' });
+Permission.belongsToMany(Role, { through: RolePermission, foreignKey: 'permission_id', otherKey: 'role_id', as: 'roles' });
+
+Role.hasMany(RolePermission, { foreignKey: 'role_id', as: 'rolePermissions' });
+RolePermission.belongsTo(Role, { foreignKey: 'role_id', as: 'role' });
+
+Permission.hasMany(RolePermission, { foreignKey: 'permission_id', as: 'rolePermissions' });
+RolePermission.belongsTo(Permission, { foreignKey: 'permission_id', as: 'permission' });
+
+// Role & RoleTestLimit
+Role.hasMany(RoleTestLimit, { foreignKey: 'role_id', as: 'testLimits' });
+RoleTestLimit.belongsTo(Role, { foreignKey: 'role_id', as: 'role' });
+
+// User & UserTestLimit
+User.hasMany(UserTestLimit, { foreignKey: 'user_id', as: 'testLimitOverrides' });
+UserTestLimit.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
 module.exports = {
   sequelize,
+  Permission,
+  Role,
+  RolePermission,
   User,
   Topic,
   Subtopic,
@@ -102,5 +128,8 @@ module.exports = {
   UserAnsweredQuestion,
   SystemSetting,
   UserContentView,
+  RoleTestLimit,
+  UserTestLimit,
 };
+
 

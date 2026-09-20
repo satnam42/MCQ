@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import QuestionRepetitionSelector from '../../components/QuestionRepetitionSelector';
+import QuotaBanner from '../../components/QuotaBanner';
 import { clearTestProgress } from '../../utils/testCache';
-import { BookOpen, PlayCircle, Filter, CheckCircle } from 'lucide-react';
+import { BookOpen, PlayCircle, Filter, CheckCircle, Lock, AlertCircle } from 'lucide-react';
 
 const TopicPracticePage = () => {
   const navigate = useNavigate();
@@ -16,6 +17,8 @@ const TopicPracticePage = () => {
     return localStorage.getItem('question_repetition_preference') || 'mix';
   });
   const [loading, setLoading] = useState(true);
+  const [quota, setQuota] = useState(null);
+  const [limitErrorMsg, setLimitErrorMsg] = useState('');
 
   const settingsRef = useRef(null);
 
@@ -40,23 +43,33 @@ const TopicPracticePage = () => {
   };
 
   useEffect(() => {
-    const fetchTopics = async () => {
+    const fetchData = async () => {
       try {
-        const res = await api.get('/topics');
-        if (res.data.success) {
-          setTopics(res.data.data.topics || []);
-          if (res.data.data.topics?.length > 0) {
-            setSelectedTopic(res.data.data.topics[0]);
+        const [topicsRes, quotaRes] = await Promise.allSettled([
+          api.get('/topics'),
+          api.get('/test-limits/my-quotas'),
+        ]);
+
+        if (topicsRes.status === 'fulfilled' && topicsRes.value.data.success) {
+          const tList = topicsRes.value.data.data.topics || [];
+          setTopics(tList);
+          if (tList.length > 0) {
+            setSelectedTopic(tList[0]);
           }
         }
+
+        if (quotaRes.status === 'fulfilled' && quotaRes.value.data?.success && quotaRes.value.data?.data) {
+          const qData = quotaRes.value.data.data.topic || quotaRes.value.data.data.practice || quotaRes.value.data.data.quotas?.topic || quotaRes.value.data.data;
+          if (qData) setQuota(qData);
+        }
       } catch (err) {
-        console.error('Failed to fetch topics:', err);
+        console.error('Failed to fetch topic data or quota:', err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTopics();
+    fetchData();
   }, []);
 
   const handleRepetitionModeChange = (mode) => {
@@ -104,7 +117,11 @@ const TopicPracticePage = () => {
       }
     } catch (err) {
       console.error('Failed to start topic practice:', err);
-      alert('Failed to start practice session.');
+      if (err.response?.status === 403 || err.response?.data?.code === 'TEST_LIMIT_REACHED' || err.response?.data?.code === 'TEST_TYPE_BLOCKED') {
+        setLimitErrorMsg(err.response?.data?.message || 'You have reached your limit for topic practice sessions.');
+      } else {
+        alert('Failed to start practice session. Please try again.');
+      }
     }
   };
 
@@ -116,9 +133,22 @@ const TopicPracticePage = () => {
     );
   }
 
+  const isStartDisabled = quota && (quota.remaining === 0 || quota.isBlocked || !quota.isAllowed || quota.isDisabled);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       
+      {/* Quota Banner */}
+      {quota && <QuotaBanner quota={quota} testTypeName="Topic Practice" />}
+
+      {/* Limit Error Banner */}
+      {limitErrorMsg && (
+        <div className="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-2xl flex items-center space-x-3 text-xs font-bold">
+          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+          <span>{limitErrorMsg}</span>
+        </div>
+      )}
+
       {/* Page Title Header */}
       <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200 space-y-2">
         <div className="flex items-center space-x-3 text-amber-600">
@@ -294,10 +324,15 @@ const TopicPracticePage = () => {
           {/* Start CTA */}
           <button
             onClick={handleStartPractice}
-            className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold rounded-2xl text-base shadow-md transition-all flex items-center justify-center space-x-2"
+            disabled={isStartDisabled}
+            className={`w-full py-4 font-extrabold rounded-2xl text-base shadow-md transition-all flex items-center justify-center space-x-2 ${
+              isStartDisabled
+                ? 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-70 shadow-none'
+                : 'bg-amber-500 hover:bg-amber-600 text-slate-950 cursor-pointer'
+            }`}
           >
-            <PlayCircle className="w-5 h-5" />
-            <span>Start Practice</span>
+            {isStartDisabled ? <Lock className="w-5 h-5" /> : <PlayCircle className="w-5 h-5" />}
+            <span>{isStartDisabled ? 'Limit Reached / Disabled' : 'Start Practice'}</span>
           </button>
         </div>
 

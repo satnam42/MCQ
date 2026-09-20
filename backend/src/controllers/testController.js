@@ -3,12 +3,58 @@ const { Op } = require('sequelize');
 const contentStatusService = require('../services/contentStatusService');
 const { successResponse, errorResponse } = require('../utils/responseFormatter');
 
+const testLimitService = require('../services/testLimitService');
+
 const startTest = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
   try {
     const userId = req.user.id;
     const { dailyQuizId, testType = 'daily', topicId, difficulty, totalQuestions } = req.body;
     const parsedTotalQuestions = parseInt(totalQuestions, 10) || 50;
 
+    const testTypeLower = String(testType || 'daily').toLowerCase();
+    const testTypeVariations = (testTypeLower === 'daily' || testTypeLower === 'daily_quiz' || testTypeLower === 'daily_test')
+      ? ['daily', 'daily_quiz', 'daily_test', 'Daily', 'DAILY']
+      : [testType, testTypeLower, testType.toUpperCase()];
+
+    // 1. Check for existing active/in-progress (uncompleted) test attempt for idempotency
+    const activeWhere = {
+      user_id: userId,
+      test_type: { [Op.in]: testTypeVariations },
+      completed_at: null,
+    };
+    if (testTypeLower === 'daily' && dailyQuizId) activeWhere.daily_quiz_id = dailyQuizId;
+    if (testTypeLower === 'topic' && topicId) activeWhere.topic_id = topicId;
+
+    const activeAttempt = await TestAttempt.findOne({
+      where: activeWhere,
+      transaction,
+    });
+
+    if (activeAttempt) {
+      await transaction.commit();
+      console.log(`[Active Test Session Reused] userId=${userId} attemptId=${activeAttempt.id} testType=${testType}`);
+      return successResponse(res, { attemptId: activeAttempt.id, isExisting: true }, 'Resuming active test attempt', 200);
+    }
+
+    // 2. Perform final backend quota check inside transaction before creation
+    const quotaInfo = await testLimitService.getUserTestQuota(userId, testType, { transaction });
+    if (!quotaInfo.isAllowed) {
+      await transaction.rollback();
+      const errorCode = testType === 'daily' ? 'DAILY_TEST_LIMIT_REACHED' : 'TEST_LIMIT_REACHED';
+      console.log(`[Quota Blocked] userId=${userId} testType=${testType} limit=${quotaInfo.limit} used=${quotaInfo.used} remaining=${quotaInfo.remaining}`);
+      return res.status(403).json({
+        code: errorCode,
+        message: testType === 'daily' ? 'You have reached your Daily Test limit for today.' : quotaInfo.message,
+        limit: quotaInfo.limit,
+        used: quotaInfo.used,
+        remaining: quotaInfo.remaining,
+        resetAt: quotaInfo.nextReset,
+        limitInfo: quotaInfo,
+      });
+    }
+
+    // 3. Create fresh test attempt
     const attempt = await TestAttempt.create({
       user_id: userId,
       daily_quiz_id: dailyQuizId || null,
@@ -17,10 +63,15 @@ const startTest = async (req, res, next) => {
       difficulty: difficulty || null,
       total_questions: parsedTotalQuestions,
       started_at: new Date(),
-    });
+    }, { transaction });
 
-    return successResponse(res, { attemptId: attempt.id }, 'Test attempt started', 201);
+    await transaction.commit();
+    console.log(`[New Test Attempt Created] userId=${userId} attemptId=${attempt.id} testType=${testType}`);
+    return successResponse(res, { attemptId: attempt.id, isExisting: false }, 'Test attempt started', 201);
   } catch (err) {
+    if (transaction && !transaction.finished) {
+      await transaction.rollback().catch(() => {});
+    }
     next(err);
   }
 };
@@ -44,8 +95,24 @@ const submitTest = async (req, res, next) => {
     }
 
     if (attempt.completed_at) {
-      await transaction.rollback();
-      return errorResponse(res, 'Test has already been submitted', 'ALREADY_SUBMITTED', 400);
+      const quota = await testLimitService.getUserTestQuota(userId, attempt.test_type, { transaction });
+      await transaction.commit();
+      return successResponse(
+        res,
+        {
+          attemptId: attempt.id,
+          score: attempt.score || 0,
+          totalQuestions: attempt.total_questions || 50,
+          correctAnswers: attempt.correct_answers || 0,
+          incorrectAnswers: attempt.incorrect_answers || 0,
+          unanswered: attempt.unanswered || 0,
+          percentage: attempt.total_questions ? Math.round(((attempt.score || 0) / attempt.total_questions) * 100) : 0,
+          quota,
+          isAlreadySubmitted: true,
+        },
+        'Test has already been submitted',
+        200
+      );
     }
 
     // Fetch all referenced questions to check correct answers
@@ -133,6 +200,9 @@ const submitTest = async (req, res, next) => {
       { transaction }
     );
 
+    // Resolve fresh quota after completion
+    const quota = await testLimitService.getUserTestQuota(userId, attempt.test_type, { transaction });
+
     await transaction.commit();
 
     return successResponse(
@@ -145,6 +215,7 @@ const submitTest = async (req, res, next) => {
         incorrectAnswers: incorrectCount,
         unanswered: unansweredCount,
         percentage: Math.round((score / totalQuestions) * 100),
+        quota,
       },
       'Test submitted successfully'
     );

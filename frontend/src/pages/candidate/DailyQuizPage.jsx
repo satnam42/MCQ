@@ -7,8 +7,9 @@ import QuizTimer from '../../components/QuizTimer';
 import ProgressBar from '../../components/ProgressBar';
 import ResultSummaryModal from '../../components/ResultSummaryModal';
 import ResetConfirmationModal from '../../components/ResetConfirmationModal';
+import QuotaBanner from '../../components/QuotaBanner';
 import { saveTestProgress, restoreTestProgress, clearTestProgress } from '../../utils/testCache';
-import { ChevronLeft, ChevronRight, Send, AlertCircle, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Send, AlertCircle, RotateCcw, CheckCircle2, Lock } from 'lucide-react';
 
 const DailyQuizPage = () => {
   const location = useLocation();
@@ -25,6 +26,8 @@ const DailyQuizPage = () => {
   const [seconds, setSeconds] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [quota, setQuota] = useState(null);
+  const [isQuotaError, setIsQuotaError] = useState(false);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
@@ -62,6 +65,17 @@ const DailyQuizPage = () => {
 
   useEffect(() => {
     const initDailyQuiz = async () => {
+      // 0. Fetch user test quota for daily tests
+      try {
+        const qRes = await api.get('/test-limits/my-quotas');
+        if (qRes.data?.success && qRes.data?.data) {
+          const qObj = qRes.data.data.daily || qRes.data.data.quotas?.daily || qRes.data.data;
+          if (qObj) setQuota(qObj);
+        }
+      } catch (qErr) {
+        console.warn('Could not fetch daily quiz quota:', qErr);
+      }
+
       // 1. Check if an unfinished test progress exists in cache
       const cached = restoreTestProgress();
       if (cached && cached.testType === 'daily' && cached.questions && cached.questions.length > 0) {
@@ -88,36 +102,15 @@ const DailyQuizPage = () => {
           const quiz = quizRes.data.data;
           setQuizData(quiz);
           setQuestionCount(quiz.questions.length);
-
-          // Start Test Attempt
-          const startRes = await api.post('/tests/start', {
-            dailyQuizId: quiz.id,
-            testType: 'daily',
-            totalQuestions: quiz.questions.length,
-          });
-
-          if (startRes.data.success) {
-            const newAttemptId = startRes.data.data.attemptId;
-            setAttemptId(newAttemptId);
-            saveTestProgress({
-              testId: newAttemptId,
-              testType: 'daily',
-              title: "Today's Daily Test",
-              dailyQuizId: quiz.id,
-              quizDate: quiz.quizDate,
-              totalQuestions: quiz.questions.length,
-              questions: quiz.questions,
-              currentQuestionIndex: 0,
-              selectedAnswers: {},
-              markedForReview: {},
-              elapsedTime: 0,
-              status: 'in-progress',
-            });
-          }
         }
       } catch (err) {
         console.error('Failed to initialize daily quiz:', err);
-        setError('Unable to load test. Please try again.');
+        if (err.response?.status === 403 || err.response?.data?.code === 'DAILY_TEST_LIMIT_REACHED' || err.response?.data?.code === 'TEST_LIMIT_REACHED') {
+          setIsQuotaError(true);
+          setError(err.response?.data?.message || 'You have reached your daily test limit.');
+        } else {
+          setError('Unable to load test. Please try again.');
+        }
       } finally {
         setLoading(false);
       }
@@ -158,14 +151,130 @@ const DailyQuizPage = () => {
   if (error || !quizData || !quizData.questions || quizData.questions.length === 0) {
     return (
       <div className="max-w-xl mx-auto my-12 p-8 bg-white rounded-3xl shadow-lg border border-slate-200 text-center space-y-4">
-        <AlertCircle className="w-12 h-12 text-rose-500 mx-auto" />
-        <h2 className="text-xl font-bold text-slate-900">No Test Available</h2>
+        {isQuotaError ? (
+          <Lock className="w-12 h-12 text-rose-500 mx-auto" />
+        ) : (
+          <AlertCircle className="w-12 h-12 text-amber-500 mx-auto" />
+        )}
+        <h2 className="text-xl font-bold text-slate-900">
+          {isQuotaError ? 'Daily Test Limit Reached' : 'No Test Available'}
+        </h2>
+        {quota && <QuotaBanner quota={quota} testTypeName="Daily Test" className="text-left" />}
         <p className="text-sm text-slate-600">{error || 'Today\'s test is unavailable.'}</p>
         <button
           onClick={() => navigate('/dashboard')}
-          className="px-6 py-2.5 bg-amber-500 text-slate-950 font-bold rounded-xl text-sm"
+          className="px-6 py-2.5 bg-amber-500 text-slate-950 font-bold rounded-xl text-sm cursor-pointer shadow-md"
         >
           Return to Dashboard
+        </button>
+      </div>
+    );
+  }
+
+  const handleStartDailyTest = async () => {
+    setLoading(true);
+    try {
+      const startRes = await api.post('/tests/start', {
+        dailyQuizId: quizData.id,
+        testType: 'daily',
+        totalQuestions: quizData.questions.length,
+      });
+
+      if (startRes.data.success) {
+        const newAttemptId = startRes.data.data.attemptId;
+        setAttemptId(newAttemptId);
+        saveTestProgress({
+          testId: newAttemptId,
+          testType: 'daily',
+          title: "Today's Daily Test",
+          dailyQuizId: quizData.id,
+          quizDate: quizData.quizDate,
+          totalQuestions: quizData.questions.length,
+          questions: quizData.questions,
+          currentQuestionIndex: 0,
+          selectedAnswers: {},
+          markedForReview: {},
+          elapsedTime: 0,
+          status: 'in-progress',
+        });
+      }
+    } catch (err) {
+      console.error('Failed to start daily test attempt:', err);
+      if (err.response?.status === 403 || err.response?.data?.code === 'DAILY_TEST_LIMIT_REACHED' || err.response?.data?.code === 'TEST_LIMIT_REACHED') {
+        setIsQuotaError(true);
+        setError(err.response?.data?.message || 'You have reached your Daily Test limit for today.');
+        if (err.response?.data?.limitInfo) {
+          setQuota(err.response.data.limitInfo);
+        }
+      } else {
+        setError('Unable to start test session. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!attemptId) {
+    const isAllowed = quota ? quota.isAllowed : true;
+    return (
+      <div className="max-w-2xl mx-auto my-8 p-6 md:p-8 bg-white rounded-3xl shadow-xl border border-slate-200 text-slate-900 space-y-6">
+        <div className="text-center space-y-2">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto mb-3">
+            <CheckCircle2 className="w-7 h-7 text-amber-500" />
+          </div>
+          <h1 className="text-2xl font-extrabold text-slate-900">Today's Daily Test</h1>
+          <p className="text-sm text-slate-500 font-medium">
+            {quizData.quizDate || 'Authentic Punjabi MCQs'} • {quizData.questions?.length || 50} Questions
+          </p>
+        </div>
+
+        {/* Quota Dashboard Card */}
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+            <span className="font-extrabold text-sm text-slate-800 uppercase tracking-wider">Today's Quota Status</span>
+            <span className="px-3 py-1 bg-amber-100 text-amber-900 rounded-full font-extrabold text-xs">
+              {quota?.isUnlimited ? 'Unlimited' : `${quota?.used || 0} / ${quota?.limit || 0} used`}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 text-xs">
+            <div className="bg-white p-3 rounded-xl border border-slate-200">
+              <span className="text-slate-500 block font-medium">Remaining Tests</span>
+              <span className="text-lg font-black text-slate-900">
+                {quota?.isUnlimited ? 'Unlimited' : `${quota?.remaining ?? 0} remaining`}
+              </span>
+            </div>
+            <div className="bg-white p-3 rounded-xl border border-slate-200">
+              <span className="text-slate-500 block font-medium">Reset Schedule</span>
+              <span className="text-xs font-bold text-slate-800 block mt-1">
+                Midnight IST (Asia/Kolkata)
+              </span>
+            </div>
+          </div>
+
+          {quota && !quota.isAllowed && (
+            <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-medium space-y-1">
+              <div className="font-bold flex items-center gap-1.5 text-sm">
+                <Lock className="w-4 h-4 text-rose-600" />
+                Daily Test Limit Reached
+              </div>
+              <p>You have used {quota.used} of {quota.limit} Daily Tests today.</p>
+              <p className="text-[11px] text-rose-600">Your limit will reset tomorrow at 12:00 AM IST.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Start Button */}
+        <button
+          onClick={handleStartDailyTest}
+          disabled={!isAllowed}
+          className={`w-full py-4 rounded-2xl font-extrabold text-base shadow-lg transition-all cursor-pointer ${
+            !isAllowed
+              ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none border border-slate-300'
+              : 'bg-amber-500 hover:bg-amber-400 text-slate-950 hover:shadow-xl'
+          }`}
+        >
+          {!isAllowed ? 'Daily Limit Reached' : 'Start Daily Test Now'}
         </button>
       </div>
     );
@@ -276,6 +385,9 @@ const DailyQuizPage = () => {
 
       if (res.data.success) {
         clearTestProgress();
+        if (res.data.data?.quota) {
+          setQuota(res.data.data.quota);
+        }
         navigate(`/test-result/${attemptId}`);
       }
     } catch (err) {
@@ -292,6 +404,9 @@ const DailyQuizPage = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       
+      {/* Quota Banner */}
+      {quota && <QuotaBanner quota={quota} testTypeName="Daily Test" />}
+
       {/* Restored Test Banner */}
       {isRestoredBannerVisible && (
         <div className="bg-amber-50 border border-amber-300 text-amber-950 px-4 py-3 rounded-2xl flex items-center justify-between shadow-sm animate-in fade-in duration-300">

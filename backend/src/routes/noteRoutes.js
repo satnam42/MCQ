@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const noteController = require('../controllers/noteController');
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorize, requirePermission } = require('../middleware/auth');
 const { errorResponse } = require('../utils/responseFormatter');
 
 // Configure Multer in-memory storage for uploaded .txt and .json files
@@ -59,10 +59,10 @@ router.get('/', noteController.getNotes);
 router.get('/:id', noteController.getNoteById);
 
 // Admin-only routes
-router.post('/preview', authenticate, authorize(['admin']), handleUpload('file'), noteController.previewNote);
-router.post('/bulk-import', authenticate, authorize(['admin']), handleUpload('file'), noteController.bulkImportNotes);
-router.post('/', authenticate, authorize(['admin']), handleUpload('file'), noteController.createNote);
-router.put('/:id', authenticate, authorize(['admin']), handleUpload('file'), noteController.updateNote);
-router.delete('/:id', authenticate, authorize(['admin']), noteController.deleteNote);
+router.post('/preview', authenticate, authorize(['admin']), requirePermission('MANAGE_NOTES'), handleUpload('file'), noteController.previewNote);
+router.post('/bulk-import', authenticate, authorize(['admin']), requirePermission('MANAGE_NOTES'), handleUpload('file'), noteController.bulkImportNotes);
+router.post('/', authenticate, authorize(['admin']), requirePermission('MANAGE_NOTES'), handleUpload('file'), noteController.createNote);
+router.put('/:id', authenticate, authorize(['admin']), requirePermission('MANAGE_NOTES'), handleUpload('file'), noteController.updateNote);
+router.delete('/:id', authenticate, authorize(['admin']), requirePermission('MANAGE_NOTES'), noteController.deleteNote);
 
 module.exports = router;
