@@ -32,7 +32,10 @@ const authenticate = async (req, res, next) => {
 
     next();
   } catch (err) {
-    return errorResponse(res, 'Invalid or expired session token. Please login again.', 'INVALID_TOKEN', 401);
+    if (err.name === 'TokenExpiredError') {
+      return errorResponse(res, 'Your session has expired. Please log in again.', 'TOKEN_EXPIRED', 401);
+    }
+    return errorResponse(res, 'Invalid or expired session token. Please log in again.', 'INVALID_TOKEN', 401);
   }
 };
 

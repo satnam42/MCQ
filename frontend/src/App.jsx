@@ -20,6 +20,7 @@ import ProgressDashboardPage from './pages/candidate/ProgressDashboardPage';
 import TestHistoryPage from './pages/candidate/TestHistoryPage';
 import ReattemptIncorrectPage from './pages/candidate/ReattemptIncorrectPage';
 import StudyNotesPage from './pages/candidate/StudyNotesPage';
+import MockTestSetupPage from './pages/candidate/MockTestSetupPage';
 import SettingsPage from './pages/SettingsPage';
 
 // Admin Pages
@@ -33,6 +34,7 @@ import ManageUsersPage from './pages/admin/ManageUsersPage';
 import ManagePermissionsPage from './pages/admin/ManagePermissionsPage';
 import AdminTestLimits from './pages/admin/AdminTestLimits';
 import AdminUserTestLimits from './pages/admin/AdminUserTestLimits';
+import AdminMockTestPage from './pages/admin/AdminMockTestPage';
 
 function App() {
   return (
@@ -64,6 +66,14 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <CandidateDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/mock-test"
+                    element={
+                      <ProtectedRoute>
+                        <MockTestSetupPage />
                       </ProtectedRoute>
                     }
                   />
@@ -154,6 +164,14 @@ function App() {
                     element={
                       <AdminRoute>
                         <AdminDashboard />
+                      </AdminRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/mock-tests"
+                    element={
+                      <AdminRoute>
+                        <AdminMockTestPage />
                       </AdminRoute>
                     }
                   />

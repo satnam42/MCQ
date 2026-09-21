@@ -86,7 +86,8 @@ async function seedDatabase() {
       { key: 'MANAGE_NOTES', label: 'Manage Notes', group: 'admin', description: 'Create and manage study notes' },
       { key: 'MANAGE_PERMISSIONS', label: 'Manage Permissions', group: 'admin', description: 'Manage role permissions' },
       { key: 'MANAGE_TEST_LIMITS', label: 'Manage Test Limits', group: 'admin', description: 'Manage role test limits' },
-      { key: 'MANAGE_USER_LIMITS', label: 'Manage User Test Limits', group: 'admin', description: 'Manage user test limit overrides' },
+      { key: 'CAN_ACCESS_MOCK_TEST', label: 'Access Mock Test', group: 'navigation', description: 'Access user mock test feature' },
+      { key: 'MANAGE_MOCK_TESTS', label: 'Manage Mock Tests', group: 'admin', description: 'Configure global mock test settings and limits' },
     ];
 
     for (const p of allPermissions) {

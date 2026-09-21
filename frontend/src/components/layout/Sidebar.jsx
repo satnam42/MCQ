@@ -53,6 +53,7 @@ const Sidebar = ({ isCollapsed, onToggleCollapse, mobileOpen, onCloseMobile }) =
   // Common User Menu Items
   const userMenuItems = [
     { label: 'Home', icon: Home, path: '/dashboard', permission: 'HOME_VIEW' },
+    { label: 'Mock Test', icon: Target, path: '/mock-test', isGurmukhi: false, permission: 'CAN_ACCESS_MOCK_TEST' },
     { label: 'Practice', icon: Target, path: '/practice-session', permission: 'PRACTICE_VIEW' },
     { label: 'Topics', icon: BookOpen, path: '/topic-practice', permission: 'TOPICS_VIEW' },
     { label: 'Daily Test', icon: Award, path: '/daily-quiz', permission: 'DAILY_TEST_VIEW' },
@@ -70,6 +71,7 @@ const Sidebar = ({ isCollapsed, onToggleCollapse, mobileOpen, onCloseMobile }) =
   // Admin Only Management Menu Items
   const adminMenuItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/admin', permission: 'HOME_VIEW' },
+    { label: 'Mock Test Settings', icon: Sliders, path: '/admin/mock-tests', permission: 'MANAGE_MOCK_TESTS' },
     { label: 'Manage Users', icon: Users, path: '/admin/users', permission: 'MANAGE_USERS' },
     { label: 'Manage Questions', icon: HelpCircle, path: '/admin/questions', permission: 'MANAGE_QUESTIONS' },
     { label: 'Manage Topics', icon: FolderTree, path: '/admin/topics', permission: 'MANAGE_TOPICS' },

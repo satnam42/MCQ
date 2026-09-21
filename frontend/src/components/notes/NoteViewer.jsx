@@ -1,18 +1,19 @@
 import React from 'react';
 import { Calendar } from 'lucide-react';
 import DownloadPdfButton from './DownloadPdfButton';
+import NoteRenderer from './NoteRenderer';
 
 const NoteViewer = ({ note, showPdfDownload = true }) => {
   if (!note) {
     return (
-      <div className="p-8 text-center bg-white border border-slate-200 rounded-2xl shadow-sm">
+      <div className="p-8 text-center bg-white border border-slate-200 rounded-2xl shadow-sm font-gurmukhi">
         <p className="text-slate-500 font-medium">ਕੋਈ ਨੋਟ ਉਪਲਬਧ ਨਹੀਂ ਹੈ (No note available to view)</p>
       </div>
     );
   }
 
-  const formattedDate = note.createdAt
-    ? new Date(note.createdAt).toLocaleDateString('pa-IN', {
+  const formattedDate = note.createdAt || note.created_at
+    ? new Date(note.createdAt || note.created_at).toLocaleDateString('pa-IN', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
@@ -44,12 +45,9 @@ const NoteViewer = ({ note, showPdfDownload = true }) => {
         </div>
       </div>
 
-      {/* Structured HTML Study Content */}
+      {/* Structured Study Content Renderer */}
       <div id={`note-content-${note.id}`} className="p-6 sm:p-8 bg-amber-50/20">
-        <article
-          className="notes-container text-slate-800"
-          dangerouslySetInnerHTML={{ __html: note.html_content || note.htmlContent }}
-        />
+        <NoteRenderer note={note} />
       </div>
     </div>
   );

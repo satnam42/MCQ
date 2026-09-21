@@ -9,6 +9,7 @@ import ResultSummaryModal from '../../components/ResultSummaryModal';
 import ResetConfirmationModal from '../../components/ResetConfirmationModal';
 import QuotaBanner from '../../components/QuotaBanner';
 import { saveTestProgress, restoreTestProgress, clearTestProgress } from '../../utils/testCache';
+import handleApiError from '../../utils/errorHandler';
 import { ChevronLeft, ChevronRight, Send, RotateCcw, CheckCircle2 } from 'lucide-react';
 
 const PracticeSessionPage = () => {
@@ -32,6 +33,7 @@ const PracticeSessionPage = () => {
   const [quota, setQuota] = useState(null);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isRestoredBannerVisible, setIsRestoredBannerVisible] = useState(false);
@@ -80,8 +82,53 @@ const PracticeSessionPage = () => {
     };
     fetchQuota();
 
-    // 1. Check if an unfinished cached test exists
+    // 1. Prioritize explicit route state questions (e.g. from Mock Test)
     const cached = restoreTestProgress();
+    const routeQuestions = routeState.questions;
+    const currentTestType = routeState.testType || cached?.testType || 'topic';
+
+    if (routeQuestions && routeQuestions.length > 0) {
+      const isMock = routeState.testType === 'mock';
+      const isDifferentAttempt = cached && cached.testId !== routeState.attemptId;
+
+      if (isMock || isDifferentAttempt || !cached) {
+        if (isMock || isDifferentAttempt) {
+          clearTestProgress();
+        }
+
+        setAttemptId(routeState.attemptId);
+        setTitle(routeState.title || (isMock ? 'ਮੋਕ ਟੈਸਟ' : 'Practice Session'));
+        setQuestions(routeQuestions);
+        setTopicId(routeState.topicId || null);
+        setDifficulty(routeState.difficulty || 'all');
+        setRepetitionMode(routeState.repetitionMode || 'mix');
+        setQuestionCount(routeState.questionCount || routeQuestions.length);
+
+        console.log('Questions passed to practice:', routeQuestions.length);
+        console.log('Practice screen question count:', routeQuestions.length);
+
+        saveTestProgress({
+          testId: routeState.attemptId,
+          testType: currentTestType,
+          title: routeState.title || (isMock ? 'ਮੋਕ ਟੈਸਟ' : 'Practice Session'),
+          topicId: routeState.topicId || null,
+          difficulty: routeState.difficulty || 'all',
+          repetitionMode: routeState.repetitionMode || 'mix',
+          totalQuestions: routeState.questionCount || routeQuestions.length,
+          questions: routeQuestions,
+          currentQuestionIndex: 0,
+          selectedAnswers: {},
+          markedForReview: {},
+          elapsedTime: 0,
+          status: 'in-progress',
+        });
+
+        setIsInitialized(true);
+        return;
+      }
+    }
+
+    // 2. Otherwise restore unfinished cached test progress
     if (cached && cached.questions && cached.questions.length > 0) {
       setAttemptId(cached.testId);
       setTitle(cached.title || 'Practice Session');
@@ -89,41 +136,15 @@ const PracticeSessionPage = () => {
       setTopicId(cached.topicId || null);
       setDifficulty(cached.difficulty || 'all');
       setRepetitionMode(cached.repetitionMode || 'mix');
-      setQuestionCount(cached.totalQuestions || cached.questions.length || 50);
+      setQuestionCount(cached.totalQuestions || cached.questions.length);
       setCurrentIndex(cached.currentQuestionIndex || 0);
       setAnswers(cached.selectedAnswers || {});
       setMarkedForReview(cached.markedForReview || {});
       setSeconds(cached.elapsedTime || 0);
       setIsRestoredBannerVisible(true);
+      console.log('Practice screen question count (restored):', cached.questions.length);
       setIsInitialized(true);
       return;
-    }
-
-    // 2. Otherwise use route state if passed
-    if (routeState.questions && routeState.questions.length > 0) {
-      setAttemptId(routeState.attemptId);
-      setTitle(routeState.title || 'Practice Session');
-      setQuestions(routeState.questions);
-      setTopicId(routeState.topicId || null);
-      setDifficulty(routeState.difficulty || 'all');
-      setRepetitionMode(routeState.repetitionMode || 'mix');
-      setQuestionCount(routeState.questionCount || routeState.questions.length);
-
-      saveTestProgress({
-        testId: routeState.attemptId,
-        testType: 'topic',
-        title: routeState.title || 'Practice Session',
-        topicId: routeState.topicId || null,
-        difficulty: routeState.difficulty || 'all',
-        repetitionMode: routeState.repetitionMode || 'mix',
-        totalQuestions: routeState.questionCount || routeState.questions.length,
-        questions: routeState.questions,
-        currentQuestionIndex: 0,
-        selectedAnswers: {},
-        markedForReview: {},
-        elapsedTime: 0,
-        status: 'in-progress',
-      });
     }
 
     setIsInitialized(true);
@@ -132,9 +153,10 @@ const PracticeSessionPage = () => {
   // Auto-save progress whenever test state changes
   useEffect(() => {
     if (isInitialized && attemptId && questions && questions.length > 0) {
+      const currentTestType = routeState.testType || 'topic';
       saveTestProgress({
         testId: attemptId,
-        testType: 'topic',
+        testType: currentTestType,
         title: title || 'Practice Session',
         topicId,
         difficulty,
@@ -203,55 +225,79 @@ const PracticeSessionPage = () => {
       // 1. Clear cached test progress from localStorage
       clearTestProgress();
 
-      let freshQuestions = questions;
-      const targetSize = questionCount || questions.length || 50;
+      const isMock = routeState.testType === 'mock';
 
-      // 2. Re-fetch fresh questions using the currently selected question count if topicId is available
-      if (topicId) {
-        const diffQuery = difficulty && difficulty !== 'all' ? `&difficulty=${difficulty}` : '';
-        const modeQuery = repetitionMode ? `&repetitionMode=${repetitionMode}` : '';
-        const qRes = await api.get(`/topics/${topicId}/questions?limit=${targetSize}${diffQuery}${modeQuery}`);
-        if (qRes.data.success && qRes.data.data.questions?.length > 0) {
-          freshQuestions = qRes.data.data.questions;
-        }
-      }
-
-      // 3. Start a fresh attempt via backend
-      const startRes = await api.post('/tests/start', {
-        testType: 'topic',
-        topicId: topicId || null,
-        difficulty: difficulty !== 'all' ? difficulty : null,
-        totalQuestions: freshQuestions.length,
-      });
-
-      if (startRes.data.success) {
-        const newAttemptId = startRes.data.data.attemptId;
-        setAttemptId(newAttemptId);
-        setQuestions(freshQuestions);
-
-        // 4. Reset answers and progress to Question 1
+      if (isMock) {
+        // Reset local state for Mock Test without re-fetching topic questions
         setAnswers({});
         setMarkedForReview({});
         setCurrentIndex(0);
         setSeconds(0);
         setIsRestoredBannerVisible(false);
 
-        // Save fresh test state with target question size
         saveTestProgress({
-          testId: newAttemptId,
-          testType: 'topic',
-          title: title || 'Practice Session',
-          topicId,
-          difficulty,
-          repetitionMode,
-          totalQuestions: freshQuestions.length,
-          questions: freshQuestions,
+          testId: attemptId,
+          testType: 'mock',
+          title: title || 'ਮੋਕ ਟੈਸਟ',
+          totalQuestions: questions.length,
+          questions: questions,
           currentQuestionIndex: 0,
           selectedAnswers: {},
           markedForReview: {},
           elapsedTime: 0,
           status: 'in-progress',
         });
+      } else {
+        let freshQuestions = questions;
+        const targetSize = questionCount || questions.length || 50;
+
+        // 2. Re-fetch fresh questions using the currently selected question count if topicId is available
+        if (topicId) {
+          const diffQuery = difficulty && difficulty !== 'all' ? `&difficulty=${difficulty}` : '';
+          const modeQuery = repetitionMode ? `&repetitionMode=${repetitionMode}` : '';
+          const qRes = await api.get(`/topics/${topicId}/questions?limit=${targetSize}${diffQuery}${modeQuery}`);
+          if (qRes.data.success && qRes.data.data.questions?.length > 0) {
+            freshQuestions = qRes.data.data.questions;
+          }
+        }
+
+        // 3. Start a fresh attempt via backend
+        const startRes = await api.post('/tests/start', {
+          testType: 'topic',
+          topicId: topicId || null,
+          difficulty: difficulty !== 'all' ? difficulty : null,
+          totalQuestions: freshQuestions.length,
+        });
+
+        if (startRes.data.success) {
+          const newAttemptId = startRes.data.data.attemptId;
+          setAttemptId(newAttemptId);
+          setQuestions(freshQuestions);
+
+          // 4. Reset answers and progress to Question 1
+          setAnswers({});
+          setMarkedForReview({});
+          setCurrentIndex(0);
+          setSeconds(0);
+          setIsRestoredBannerVisible(false);
+
+          // Save fresh test state with target question size
+          saveTestProgress({
+            testId: newAttemptId,
+            testType: 'topic',
+            title: title || 'Practice Session',
+            topicId,
+            difficulty,
+            repetitionMode,
+            totalQuestions: freshQuestions.length,
+            questions: freshQuestions,
+            currentQuestionIndex: 0,
+            selectedAnswers: {},
+            markedForReview: {},
+            elapsedTime: 0,
+            status: 'in-progress',
+          });
+        }
       }
     } catch (err) {
       console.error('Failed to reset practice session:', err);
@@ -263,8 +309,9 @@ const PracticeSessionPage = () => {
   };
 
   const handleConfirmSubmit = async () => {
-    if (!attemptId) return;
+    if (!attemptId || isSubmitting) return;
     setIsSubmitting(true);
+    setSubmitError('');
 
     try {
       const answersPayload = questions.map((q, idx) => ({
@@ -283,8 +330,11 @@ const PracticeSessionPage = () => {
       }
     } catch (err) {
       console.error('Failed to submit practice session:', err);
-      alert('Failed to submit practice session.');
+      const parsedError = handleApiError(err);
+      setSubmitError(parsedError.message);
       setIsSubmitting(false);
+      // Ensure submit modal remains open so user can click 'Try Again'
+      setIsSubmitModalOpen(true);
     }
   };
 
@@ -338,7 +388,10 @@ const PracticeSessionPage = () => {
           </button>
 
           <button
-            onClick={() => setIsSubmitModalOpen(true)}
+            onClick={() => {
+              setSubmitError('');
+              setIsSubmitModalOpen(true);
+            }}
             className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-sm shadow-md transition-all flex items-center space-x-2"
           >
             <Send className="w-4 h-4" />
@@ -383,7 +436,10 @@ const PracticeSessionPage = () => {
 
             {currentIndex === totalQuestions - 1 ? (
               <button
-                onClick={() => setIsSubmitModalOpen(true)}
+                onClick={() => {
+                  setSubmitError('');
+                  setIsSubmitModalOpen(true);
+                }}
                 className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-sm shadow-md transition-colors flex items-center space-x-2"
               >
                 <Send className="w-4 h-4" />
@@ -422,6 +478,7 @@ const PracticeSessionPage = () => {
         unansweredCount={unansweredCount}
         markedCount={markedCount}
         isSubmitting={isSubmitting}
+        submitError={submitError}
       />
 
       <ResetConfirmationModal

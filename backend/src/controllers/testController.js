@@ -86,12 +86,12 @@ const submitTest = async (req, res, next) => {
     const attempt = await TestAttempt.findByPk(attemptId, { transaction });
     if (!attempt) {
       await transaction.rollback();
-      return errorResponse(res, 'Test attempt not found', 'ATTEMPT_NOT_FOUND', 404);
+      return errorResponse(res, 'This test session is no longer available. Please start a new test.', 'TEST_SESSION_NOT_FOUND', 404);
     }
 
     if (attempt.user_id !== userId) {
       await transaction.rollback();
-      return errorResponse(res, 'Unauthorized test submission', 'FORBIDDEN', 403);
+      return errorResponse(res, 'Unauthorized test submission.', 'FORBIDDEN', 403);
     }
 
     if (attempt.completed_at) {
@@ -110,7 +110,7 @@ const submitTest = async (req, res, next) => {
           quota,
           isAlreadySubmitted: true,
         },
-        'Test has already been submitted',
+        'This test has already been submitted.',
         200
       );
     }
@@ -128,10 +128,17 @@ const submitTest = async (req, res, next) => {
     let correctCount = 0;
     let incorrectCount = 0;
     let unansweredCount = 0;
+    let missingCount = 0;
 
     const testAnswersPayload = [];
+    const validAnsweredPayload = [];
 
     answers.forEach((ans) => {
+      if (!ans.questionId || !questionMap.has(ans.questionId)) {
+        missingCount++;
+        return;
+      }
+
       const correctOpt = questionMap.get(ans.questionId);
       const selected = ans.selectedOption ? ans.selectedOption.toUpperCase() : null;
 
@@ -153,6 +160,12 @@ const submitTest = async (req, res, next) => {
           correct_option: correctOpt,
           is_correct: true,
         });
+        validAnsweredPayload.push({
+          user_id: userId,
+          question_id: ans.questionId,
+          topic_id: attempt.topic_id || null,
+          answered_at: new Date(),
+        });
       } else {
         incorrectCount++;
         testAnswersPayload.push({
@@ -162,35 +175,33 @@ const submitTest = async (req, res, next) => {
           correct_option: correctOpt || 'A',
           is_correct: false,
         });
+        validAnsweredPayload.push({
+          user_id: userId,
+          question_id: ans.questionId,
+          topic_id: attempt.topic_id || null,
+          answered_at: new Date(),
+        });
       }
     });
 
-    await TestAnswer.bulkCreate(testAnswersPayload, { transaction });
+    if (testAnswersPayload.length > 0) {
+      await TestAnswer.bulkCreate(testAnswersPayload, { transaction });
+    }
 
-    // Record user answered questions permanently with UNIQUE(user_id, question_id) constraint
-    const answeredPayload = answers
-      .filter((ans) => ans.questionId)
-      .map((ans) => ({
-        user_id: userId,
-        question_id: ans.questionId,
-        topic_id: attempt.topic_id || null,
-        answered_at: new Date(),
-      }));
-
-    if (answeredPayload.length > 0) {
-      await UserAnsweredQuestion.bulkCreate(answeredPayload, {
+    if (validAnsweredPayload.length > 0) {
+      await UserAnsweredQuestion.bulkCreate(validAnsweredPayload, {
         ignoreDuplicates: true,
         transaction,
       });
     }
 
-    const totalQuestions = answers.length || attempt.total_questions;
+    const validQuestionsTotal = testAnswersPayload.length || attempt.total_questions;
     const score = correctCount;
 
     await attempt.update(
       {
         score,
-        total_questions: totalQuestions,
+        total_questions: validQuestionsTotal,
         correct_answers: correctCount,
         incorrect_answers: incorrectCount,
         unanswered: unansweredCount,
@@ -200,27 +211,35 @@ const submitTest = async (req, res, next) => {
       { transaction }
     );
 
-    // Resolve fresh quota after completion
+    // Resolve fresh quota after completion inside transaction
     const quota = await testLimitService.getUserTestQuota(userId, attempt.test_type, { transaction });
 
     await transaction.commit();
+
+    const successMessage = missingCount > 0
+      ? `Test submitted successfully. ${missingCount} question(s) were no longer available and were excluded from scoring.`
+      : 'Test submitted successfully';
 
     return successResponse(
       res,
       {
         attemptId: attempt.id,
         score,
-        totalQuestions,
+        totalQuestions: validQuestionsTotal,
         correctAnswers: correctCount,
         incorrectAnswers: incorrectCount,
         unanswered: unansweredCount,
-        percentage: Math.round((score / totalQuestions) * 100),
+        percentage: validQuestionsTotal > 0 ? Math.round((score / validQuestionsTotal) * 100) : 0,
         quota,
+        submittedCount: testAnswersPayload.length,
+        missingCount,
       },
-      'Test submitted successfully'
+      successMessage
     );
   } catch (err) {
-    await transaction.rollback();
+    if (transaction && !transaction.finished) {
+      await transaction.rollback().catch(() => {});
+    }
     next(err);
   }
 };
