@@ -1,8 +1,7 @@
+require('./env');
 const { Sequelize } = require('sequelize');
-const dotenv = require('dotenv');
 const path = require('path');
 
-dotenv.config();
 
 const dbName = process.env.DB_NAME || 'punjabi_lecturer_db';
 const dbUser = process.env.DB_USER || 'root';

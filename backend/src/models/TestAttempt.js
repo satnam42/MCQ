@@ -16,7 +16,7 @@ const TestAttempt = sequelize.define('TestAttempt', {
     allowNull: true,
   },
   test_type: {
-    type: DataTypes.ENUM('daily', 'topic', 'difficulty'),
+    type: DataTypes.STRING(50),
     defaultValue: 'daily',
     allowNull: false,
   },

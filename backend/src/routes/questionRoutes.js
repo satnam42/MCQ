@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const questionController = require('../controllers/questionController');
 const { validateQuestion } = require('../validators/questionValidator');
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorize, requirePermission } = require('../middleware/auth');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -11,18 +11,18 @@ const upload = multer({
 });
 
 // Admin & Candidate Endpoints for Demo Flexibility
-router.use(authenticate, authorize(['admin', 'candidate']));
+router.use(authenticate);
 
 router.get('/', questionController.listQuestions);
 router.get('/export', questionController.exportQuestions);
-router.post('/', validateQuestion, questionController.createQuestion);
-router.put('/:id', questionController.updateQuestion);
-router.delete('/:id', questionController.deleteQuestion);
-router.post('/bulk-delete', questionController.bulkDeleteQuestions);
-router.delete('/', questionController.bulkDeleteQuestions);
+router.post('/', requirePermission('MANAGE_QUESTIONS'), validateQuestion, questionController.createQuestion);
+router.put('/:id', requirePermission('MANAGE_QUESTIONS'), questionController.updateQuestion);
+router.delete('/:id', requirePermission('DELETE_QUESTIONS'), questionController.deleteQuestion);
+router.post('/bulk-delete', requirePermission('DELETE_QUESTIONS'), questionController.bulkDeleteQuestions);
+router.delete('/', requirePermission('DELETE_QUESTIONS'), questionController.bulkDeleteQuestions);
 
-router.post('/import', upload.single('file'), questionController.importQuestions);
-router.post('/import-json', upload.single('file'), questionController.importQuestionsJSON);
-router.post('/generate-preview', questionController.generatePreview);
+router.post('/import', requirePermission('BULK_IMPORT'), upload.single('file'), questionController.importQuestions);
+router.post('/import-json', requirePermission('BULK_IMPORT'), upload.single('file'), questionController.importQuestionsJSON);
+router.post('/generate-preview', requirePermission('MANAGE_QUESTIONS'), questionController.generatePreview);
 
 module.exports = router;

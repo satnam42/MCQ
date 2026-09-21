@@ -4,6 +4,7 @@ const { sequelize, User, Topic, Note } = require('../src/models');
 const { parseTextToHtml, sanitizeHtmlContent } = require('../src/services/noteParserService');
 const jwt = require('jsonwebtoken');
 const jwtConfig = require('../src/config/jwt');
+const { seedTestPermissions } = require('./helpers/seedTestPermissions');
 
 describe('Notes Management System Backend Tests', () => {
   let adminToken;
@@ -12,6 +13,7 @@ describe('Notes Management System Backend Tests', () => {
 
   beforeAll(async () => {
     await sequelize.sync({ force: true });
+    await seedTestPermissions();
 
     // Create Admin user
     const admin = await User.create({

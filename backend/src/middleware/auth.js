@@ -79,8 +79,49 @@ const optionalAuthenticate = async (req, res, next) => {
   next();
 };
 
+/**
+ * Permission-Based Authorization Middleware
+ * Checks if the user's role has the required permission key in the database.
+ */
+const requirePermission = (permissionKey) => {
+  return async (req, res, next) => {
+    if (!req.user) {
+      return errorResponse(res, 'Authentication required', 'UNAUTHORIZED', 401);
+    }
+
+    try {
+      // Lazy-load models to avoid circular dependency
+      const { Role, Permission, RolePermission } = require('../models');
+
+      const roleRecord = await Role.findOne({ where: { name: req.user.role } });
+      if (!roleRecord) {
+        return errorResponse(res, 'Role not found in system', 'FORBIDDEN', 403);
+      }
+
+      const rolePermission = await RolePermission.findOne({
+        where: { role_id: roleRecord.id },
+        include: [{
+          model: Permission,
+          as: 'permission',
+          where: { key: permissionKey },
+        }],
+      });
+
+      if (!rolePermission) {
+        return errorResponse(res, `Forbidden: Missing permission "${permissionKey}"`, 'FORBIDDEN', 403);
+      }
+
+      next();
+    } catch (err) {
+      console.error('Permission check error:', err);
+      return errorResponse(res, 'Permission verification failed', 'INTERNAL_ERROR', 500);
+    }
+  };
+};
+
 module.exports = {
   authenticate,
   optionalAuthenticate,
   authorize,
+  requirePermission,
 };

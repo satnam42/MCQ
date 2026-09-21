@@ -1,5 +1,5 @@
 const bcrypt = require('bcryptjs');
-const { User, Topic, Subtopic, Question, Note } = require('../src/models');
+const { User, Topic, Subtopic, Question, Note, Role, Permission, RolePermission, RoleTestLimit } = require('../src/models');
 const questionsDataset = require('./questionsDataset');
 const { normalizePunjabiText } = require('../src/utils/normalizer');
 const { parseTextToHtml, sanitizeHtmlContent } = require('../src/services/noteParserService');
@@ -55,6 +55,85 @@ async function seedDatabase() {
       navjot.password_hash = await bcrypt.hash('fundo@123', salt);
       await navjot.save();
       console.log('👤 Verified user navjot@gmail.com password set to fundo@123');
+    }
+
+    // --- Seed Roles & Permissions ---
+    const roleDefs = [
+      { name: 'admin', description: 'Administrator with full access' },
+      { name: 'candidate', description: 'Standard candidate user' },
+    ];
+    for (const rd of roleDefs) {
+      await Role.findOrCreate({ where: { name: rd.name }, defaults: rd });
+    }
+
+    const allPermissions = [
+      { key: 'HOME_VIEW', label: 'Home', group: 'navigation', description: 'View home/dashboard page' },
+      { key: 'PRACTICE_VIEW', label: 'Practice', group: 'navigation', description: 'Access practice sessions' },
+      { key: 'TOPICS_VIEW', label: 'Topics', group: 'navigation', description: 'Browse topics' },
+      { key: 'DAILY_TEST_VIEW', label: 'Daily Test', group: 'navigation', description: 'Access daily quiz' },
+      { key: 'NOTES_VIEW', label: 'Notes', group: 'navigation', description: 'View study notes' },
+      { key: 'MY_PROGRESS_VIEW', label: 'My Progress', group: 'navigation', description: 'View personal progress' },
+      { key: 'SETTINGS_VIEW', label: 'Settings', group: 'navigation', description: 'Access settings page' },
+      { key: 'TEST_HISTORY_VIEW', label: 'Test History', group: 'navigation', description: 'View test history' },
+      { key: 'REATTEMPT_VIEW', label: 'Re-attempt Mistakes', group: 'navigation', description: 'Re-attempt incorrect questions' },
+      { key: 'MANAGE_USERS', label: 'Manage Users', group: 'admin', description: 'Manage user accounts' },
+      { key: 'MANAGE_QUESTIONS', label: 'Manage Questions', group: 'admin', description: 'View and manage questions' },
+      { key: 'MANAGE_TOPICS', label: 'Manage Topics', group: 'admin', description: 'Create and manage topics' },
+      { key: 'ADD_QUESTIONS', label: 'Add Questions', group: 'admin', description: 'Add new questions via AI' },
+      { key: 'BULK_IMPORT', label: 'Bulk Import Questions', group: 'admin', description: 'Import questions in bulk' },
+      { key: 'DELETE_QUESTIONS', label: 'Manage/Delete Questions', group: 'admin', description: 'Delete questions' },
+      { key: 'ADMIN_ANALYTICS', label: 'Admin Analytics', group: 'admin', description: 'View admin analytics' },
+      { key: 'MANAGE_NOTES', label: 'Manage Notes', group: 'admin', description: 'Create and manage study notes' },
+      { key: 'MANAGE_PERMISSIONS', label: 'Manage Permissions', group: 'admin', description: 'Manage role permissions' },
+      { key: 'MANAGE_TEST_LIMITS', label: 'Manage Test Limits', group: 'admin', description: 'Manage role test limits' },
+      { key: 'MANAGE_USER_LIMITS', label: 'Manage User Test Limits', group: 'admin', description: 'Manage user test limit overrides' },
+    ];
+
+    for (const p of allPermissions) {
+      await Permission.findOrCreate({ where: { key: p.key }, defaults: p });
+    }
+
+    // Assign default permissions to roles
+    const adminRole = await Role.findOne({ where: { name: 'admin' } });
+    const candidateRole = await Role.findOne({ where: { name: 'candidate' } });
+    const allPermsFromDb = await Permission.findAll();
+    const navigationPerms = allPermsFromDb.filter(p => p.group === 'navigation');
+
+    // Admin gets ALL permissions
+    for (const perm of allPermsFromDb) {
+      await RolePermission.findOrCreate({
+        where: { role_id: adminRole.id, permission_id: perm.id },
+      });
+    }
+    console.log('🔐 Admin role assigned all permissions');
+
+    // Candidate gets navigation permissions only
+    for (const perm of navigationPerms) {
+      await RolePermission.findOrCreate({
+        where: { role_id: candidateRole.id, permission_id: perm.id },
+      });
+    }
+    console.log('🔐 Candidate role assigned navigation permissions');
+
+    // Seed default RoleTestLimits
+    const defaultCandidateLimits = [
+      { role_id: candidateRole.id, test_type: 'daily', period: 'Daily', max_attempts: 2 },
+      { role_id: candidateRole.id, test_type: 'practice', period: 'Daily', max_attempts: 10 },
+      { role_id: candidateRole.id, test_type: 'topic', period: 'Daily', max_attempts: 5 },
+      { role_id: candidateRole.id, test_type: 'mock', period: 'Monthly', max_attempts: 1 },
+    ];
+    const defaultAdminLimits = [
+      { role_id: adminRole.id, test_type: 'daily', period: 'Daily', max_attempts: -1 },
+      { role_id: adminRole.id, test_type: 'practice', period: 'Daily', max_attempts: -1 },
+      { role_id: adminRole.id, test_type: 'topic', period: 'Daily', max_attempts: -1 },
+      { role_id: adminRole.id, test_type: 'mock', period: 'Monthly', max_attempts: -1 },
+    ];
+
+    for (const rtl of [...defaultCandidateLimits, ...defaultAdminLimits]) {
+      await RoleTestLimit.findOrCreate({
+        where: { role_id: rtl.role_id, test_type: rtl.test_type },
+        defaults: rtl,
+      });
     }
 
     // 2. Seed Standard Punjabi Literature Topics

@@ -4,8 +4,9 @@
   "description": "Backend API for MCQ Preparation Platform",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
+    "start": "NODE_ENV=production node server.js",
+    "dev": "NODE_ENV=development nodemon server.js",
+    "dev:prod": "NODE_ENV=production nodemon server.js",
     "seed": "node seeders/index.js",
     "test": "NODE_ENV=test jest --detectOpenHandles --forceExit"
   },

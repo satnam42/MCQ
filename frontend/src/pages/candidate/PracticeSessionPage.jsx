@@ -7,6 +7,7 @@ import QuizTimer from '../../components/QuizTimer';
 import ProgressBar from '../../components/ProgressBar';
 import ResultSummaryModal from '../../components/ResultSummaryModal';
 import ResetConfirmationModal from '../../components/ResetConfirmationModal';
+import QuotaBanner from '../../components/QuotaBanner';
 import { saveTestProgress, restoreTestProgress, clearTestProgress } from '../../utils/testCache';
 import { ChevronLeft, ChevronRight, Send, RotateCcw, CheckCircle2 } from 'lucide-react';
 
@@ -28,6 +29,7 @@ const PracticeSessionPage = () => {
   const [answers, setAnswers] = useState({});
   const [markedForReview, setMarkedForReview] = useState({});
   const [seconds, setSeconds] = useState(0);
+  const [quota, setQuota] = useState(null);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
@@ -65,6 +67,19 @@ const PracticeSessionPage = () => {
   }, [currentIndex, isInitialized]);
 
   useEffect(() => {
+    const fetchQuota = async () => {
+      try {
+        const qRes = await api.get('/test-limits/my-quotas');
+        if (qRes.data?.success && qRes.data?.data) {
+          const qObj = qRes.data.data.practice || qRes.data.data.topic || qRes.data.data.quotas?.practice || qRes.data.data;
+          if (qObj) setQuota(qObj);
+        }
+      } catch (err) {
+        console.warn('Could not fetch practice session quota:', err);
+      }
+    };
+    fetchQuota();
+
     // 1. Check if an unfinished cached test exists
     const cached = restoreTestProgress();
     if (cached && cached.questions && cached.questions.length > 0) {
@@ -280,6 +295,9 @@ const PracticeSessionPage = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       
+      {/* Quota Banner */}
+      {quota && <QuotaBanner quota={quota} testTypeName="Practice Session" />}
+
       {/* Restored Test Banner */}
       {isRestoredBannerVisible && (
         <div className="bg-amber-50 border border-amber-300 text-amber-950 px-4 py-3 rounded-2xl flex items-center justify-between shadow-sm animate-in fade-in duration-300">

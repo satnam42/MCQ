@@ -110,8 +110,22 @@ const getMe = async (req, res, next) => {
   }
 };
 
+const getAllUsers = async (req, res, next) => {
+  try {
+    const users = await User.findAll({
+      attributes: ['id', 'name', 'email', 'role', 'createdAt', 'updatedAt'],
+      order: [['id', 'DESC']],
+    });
+    return successResponse(res, { users });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   register,
   login,
   getMe,
+  getAllUsers,
 };
+
