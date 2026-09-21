@@ -12,6 +12,7 @@ const settingsRoutes = require('./settingsRoutes');
 const contentViewRoutes = require('./contentViewRoutes');
 const permissionRoutes = require('./permissionRoutes');
 const testLimitRoutes = require('./testLimitRoutes');
+const mockTestRoutes = require('./mockTestRoutes');
 
 router.use('/auth', authRoutes);
 router.use('/daily-quiz', dailyQuizRoutes);
@@ -24,6 +25,9 @@ router.use('/settings', settingsRoutes);
 router.use('/content', contentViewRoutes);
 router.use('/permissions', permissionRoutes);
 router.use('/test-limits', testLimitRoutes);
+router.use('/mock-tests', mockTestRoutes);
+router.use('/admin/mock-tests', mockTestRoutes);
 
 module.exports = router;
+
 

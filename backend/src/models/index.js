@@ -111,6 +111,12 @@ RoleTestLimit.belongsTo(Role, { foreignKey: 'role_id', as: 'role' });
 User.hasMany(UserTestLimit, { foreignKey: 'user_id', as: 'testLimitOverrides' });
 UserTestLimit.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
+const AuditLog = require('./AuditLog');
+
+// User & AuditLog
+User.hasMany(AuditLog, { foreignKey: 'user_id', as: 'auditLogs', onDelete: 'SET NULL' });
+AuditLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
 module.exports = {
   sequelize,
   Permission,
@@ -130,6 +136,8 @@ module.exports = {
   UserContentView,
   RoleTestLimit,
   UserTestLimit,
+  AuditLog,
 };
+
 
 

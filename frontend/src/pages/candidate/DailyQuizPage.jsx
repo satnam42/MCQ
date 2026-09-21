@@ -9,6 +9,7 @@ import ResultSummaryModal from '../../components/ResultSummaryModal';
 import ResetConfirmationModal from '../../components/ResetConfirmationModal';
 import QuotaBanner from '../../components/QuotaBanner';
 import { saveTestProgress, restoreTestProgress, clearTestProgress } from '../../utils/testCache';
+import handleApiError from '../../utils/errorHandler';
 import { ChevronLeft, ChevronRight, Send, AlertCircle, RotateCcw, CheckCircle2, Lock } from 'lucide-react';
 
 const DailyQuizPage = () => {
@@ -30,6 +31,7 @@ const DailyQuizPage = () => {
   const [isQuotaError, setIsQuotaError] = useState(false);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isRestoredBannerVisible, setIsRestoredBannerVisible] = useState(false);
@@ -369,8 +371,9 @@ const DailyQuizPage = () => {
   };
 
   const handleConfirmSubmit = async () => {
-    if (!attemptId) return;
+    if (!attemptId || isSubmitting) return;
     setIsSubmitting(true);
+    setSubmitError('');
 
     try {
       const answersPayload = questions.map((q, idx) => ({
@@ -392,8 +395,10 @@ const DailyQuizPage = () => {
       }
     } catch (err) {
       console.error('Failed to submit test:', err);
-      alert('Failed to submit test. Please try again.');
+      const parsedError = handleApiError(err);
+      setSubmitError(parsedError.message);
       setIsSubmitting(false);
+      setIsSubmitModalOpen(true);
     }
   };
 
@@ -425,20 +430,18 @@ const DailyQuizPage = () => {
         </div>
       )}
 
-      {/* Top Test Header & Timer Bar */}
+      {/* Header */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-slate-900">
-            Today's Daily Test
+            {quizData?.title || 'Daily Quiz Session'}
           </h1>
-          <p className="text-xs text-slate-500 font-mono">
-            Date: {quizData.quizDate} • {totalQuestions} Questions Persisted
-          </p>
+          <p className="text-xs text-slate-500 font-mono">Total {totalQuestions} Questions</p>
         </div>
 
         <div className="flex items-center space-x-3 sm:space-x-4">
           <QuizTimer seconds={seconds} setSeconds={setSeconds} />
-          
+
           <button
             onClick={() => setIsResetModalOpen(true)}
             className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-all flex items-center space-x-1.5"
@@ -449,11 +452,14 @@ const DailyQuizPage = () => {
           </button>
 
           <button
-            onClick={() => setIsSubmitModalOpen(true)}
+            onClick={() => {
+              setSubmitError('');
+              setIsSubmitModalOpen(true);
+            }}
             className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-sm shadow-md transition-all flex items-center space-x-2"
           >
             <Send className="w-4 h-4" />
-            <span>Submit Test</span>
+            <span>Submit Session</span>
           </button>
         </div>
       </div>
@@ -496,11 +502,14 @@ const DailyQuizPage = () => {
 
             {currentIndex === totalQuestions - 1 ? (
               <button
-                onClick={() => setIsSubmitModalOpen(true)}
+                onClick={() => {
+                  setSubmitError('');
+                  setIsSubmitModalOpen(true);
+                }}
                 className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-sm shadow-md transition-colors flex items-center space-x-2"
               >
                 <Send className="w-4 h-4" />
-                <span>Submit Test</span>
+                <span>Submit Session</span>
               </button>
             ) : (
               <button
@@ -537,6 +546,7 @@ const DailyQuizPage = () => {
         unansweredCount={unansweredCount}
         markedCount={markedCount}
         isSubmitting={isSubmitting}
+        submitError={submitError}
       />
 
       <ResetConfirmationModal

@@ -24,10 +24,43 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Single-flight lock to prevent duplicate logout redirects when concurrent APIs return 401
+let isSessionExpiring = false;
+
 // Response interceptor
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    const status = error.response?.status;
+    const url = error.config?.url || '';
+
+    // Bypass login/register routes where 401 means invalid credentials
+    const isAuthRoute = url.includes('/auth/login') || url.includes('/auth/register');
+
+    if (status === 401 && !isAuthRoute) {
+      if (!isSessionExpiring) {
+        isSessionExpiring = true;
+        console.warn('Session expired or 401 Unauthorized encountered. Cleaning authentication state...');
+
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        delete api.defaults.headers.common['Authorization'];
+
+        // Dispatch global event for React AuthContext
+        window.dispatchEvent(new CustomEvent('auth:session-expired'));
+
+        // Redirect to login page cleanly if not already on /login
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+          const redirectUrl = '/login?expired=1';
+          window.location.href = redirectUrl;
+        }
+
+        setTimeout(() => {
+          isSessionExpiring = false;
+        }, 2000);
+      }
+    }
+
     return Promise.reject(error);
   }
 );
